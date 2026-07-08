@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
     urgency TEXT NOT NULL,
     status TEXT NOT NULL,
     created_by TEXT NOT NULL,
+    recipient TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     completed_at TIMESTAMP WITH TIME ZONE,
     picked_by TEXT,

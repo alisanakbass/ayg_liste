@@ -117,6 +117,7 @@ async function syncWithSupabase(triggerUI = true) {
       if (typeof renderProfiles === "function") renderProfiles();
       if (typeof renderAdminProfiles === "function") renderAdminProfiles();
       if (typeof updateStats === "function") updateStats();
+      if (typeof updateAdminUI === "function") updateAdminUI();
     }
   } catch (err) {
     console.error("Supabase senkronizasyon hatası:", err);
@@ -124,6 +125,11 @@ async function syncWithSupabase(triggerUI = true) {
 }
 
 function switchTab(tab) {
+  if (tab === "admin" && state.activeUser !== "Admin") {
+    showToast("Yönetici paneline sadece Süper Admin (Admin) erişebilir!", "error");
+    return;
+  }
+  
   state.currentTab = tab;
   ["create", "active", "history", "admin"].forEach((t) => {
     const page = document.getElementById(`page-${t}`);
@@ -248,9 +254,36 @@ async function init() {
     if (mainApp) mainApp.classList.remove("hidden");
     const headerUser = document.getElementById("header-username");
     if (headerUser) headerUser.textContent = state.activeUser;
+    if (typeof updateAdminUI === "function") updateAdminUI();
     switchTab("active");
   } else {
     if (typeof showProfileScreen === "function") showProfileScreen();
+  }
+}
+
+function updateAdminUI() {
+  const tabAdmin = document.getElementById("tab-admin");
+  const btnClearHistory = document.getElementById("btn-clear-history");
+  
+  const isSuper = state.activeUser === "Admin";
+  
+  if (tabAdmin) {
+    if (isSuper) {
+      tabAdmin.classList.remove("hidden");
+    } else {
+      tabAdmin.classList.add("hidden");
+      if (state.currentTab === "admin") {
+        switchTab("active");
+      }
+    }
+  }
+  
+  if (btnClearHistory) {
+    if (isSuper) {
+      btnClearHistory.classList.remove("hidden");
+    } else {
+      btnClearHistory.classList.add("hidden");
+    }
   }
 }
 

@@ -13,7 +13,8 @@ let state = {
   supabaseUrl: "https://fnwikxmspdxamsostbnb.supabase.co",
   supabaseKey: "sb_publishable_tlsSFNjL-zfH-KUWShqIkQ_H5G97Hvd",
   modalSortOrder: "unchecked-first", // 'normal', 'unchecked-first', 'checked-first'
-  currentModalOrder: null
+  currentModalOrder: null,
+  adminPassword: "1234"
 };
 
 let supabaseClient = null;

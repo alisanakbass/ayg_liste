@@ -17,8 +17,8 @@ function initOrderForm() {
   document.getElementById("order-urgency").value = "Normal";
   document.getElementById("order-items-list").innerHTML = "";
   
-  const createdByEl = document.getElementById("order-created-by");
-  if (createdByEl) createdByEl.value = state.activeUser || "";
+  const recipientEl = document.getElementById("order-recipient");
+  if (recipientEl) recipientEl.value = "";
 
   document.getElementById("create-page-title").textContent = "Yeni Sipariş Oluştur";
   document.getElementById("btn-save-order").querySelector('span').textContent = "Siparişi Kaydet";
@@ -66,8 +66,9 @@ function removeOrderItem(id) {
 async function saveOrder() {
   const address = document.getElementById("order-address").value.trim();
   const urgency = document.getElementById("order-urgency").value;
-  const createdByEl = document.getElementById("order-created-by");
-  const createdBy = createdByEl ? createdByEl.value.trim() || state.activeUser || "Bilinmeyen" : state.activeUser || "Bilinmeyen";
+  const recipientEl = document.getElementById("order-recipient");
+  const recipient = recipientEl ? recipientEl.value.trim() || "Genel" : "Genel";
+  const createdBy = state.activeUser || "Bilinmeyen";
 
   if (!address) {
     showToast("Lütfen müşteri adresi girin!", "error");
@@ -104,7 +105,7 @@ async function saveOrder() {
       try {
         const { error } = await supabaseClient
           .from('orders')
-          .update({ customer_address: address, urgency, items, created_by: createdBy })
+          .update({ customer_address: address, urgency, items, created_by: createdBy, recipient: recipient })
           .eq('id', state.editingOrderId);
         if (error) throw error;
         
@@ -124,6 +125,7 @@ async function saveOrder() {
         state.orders[orderIndex].urgency = urgency;
         state.orders[orderIndex].items = items;
         state.orders[orderIndex].created_by = createdBy;
+        state.orders[orderIndex].recipient = recipient;
         
         showToast("Sipariş başarıyla güncellendi!", "success");
         voiceMsg = "Sipariş güncellendi.";
@@ -140,6 +142,7 @@ async function saveOrder() {
       urgency,
       status: "Bekliyor",
       created_by: createdBy,
+      recipient: recipient,
       created_at: new Date().toISOString(),
       picked_by: null,
       items,
@@ -187,8 +190,8 @@ function editOrder(orderId) {
   document.getElementById("order-address").value = order.customer_address;
   document.getElementById("order-urgency").value = order.urgency;
   
-  const createdByEl = document.getElementById("order-created-by");
-  if (createdByEl) createdByEl.value = order.created_by || "";
+  const recipientEl = document.getElementById("order-recipient");
+  if (recipientEl) recipientEl.value = order.recipient || "";
 
   const list = document.getElementById("order-items-list");
   list.innerHTML = "";
@@ -246,7 +249,8 @@ function getFilteredOrders(orders, searchInputId, urgencyFilterId) {
     const matchUrgency = urgency === "All" || o.urgency === urgency;
     const matchSearch = !search || 
       o.customer_address.toLowerCase().includes(search) ||
-      o.created_by.toLowerCase().includes(search) ||
+      (o.created_by && o.created_by.toLowerCase().includes(search)) ||
+      (o.recipient && o.recipient.toLowerCase().includes(search)) ||
       (o.picked_by && o.picked_by.toLowerCase().includes(search)) ||
       o.items.some(i => i.product_name.toLowerCase().includes(search));
     
@@ -327,9 +331,12 @@ function renderBekliyorCard(o) {
   </div>
   
   <div class="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-3 mt-1">
-    <p class="text-[11px] text-slate-400 font-semibold uppercase">Oluşturan: ${o.created_by}</p>
+    <div class="flex flex-col gap-0.5 text-[10px] text-slate-400 font-semibold uppercase">
+      <span>👤 Temsilci: ${o.created_by || "—"}</span>
+      <span class="text-indigo-600 dark:text-indigo-400 normal-case font-bold">🎯 Alıcı: ${o.recipient || "Genel"}</span>
+    </div>
     <button onclick="startPicking('${o.id}')" 
-      class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs px-4 py-2.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-1">
+      class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs px-4 py-2.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-1 cursor-pointer">
       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
       Hazırlamaya Başla
     </button>
@@ -347,10 +354,14 @@ function renderHazirlaniyorCard(o) {
       <span class="px-2.5 py-1 rounded-full text-xs font-bold ${URGENCY_BADGE[o.urgency]}">${URGENCY_ICON[o.urgency]} ${o.urgency}</span>
       <span class="text-xs text-slate-400 dark:text-slate-500 font-medium">${formatDateRelative(o.created_at)}</span>
     </div>
-    <p class="font-bold text-slate-800 dark:text-slate-100 text-base mb-2.5 flex items-start gap-1">
+    <p class="font-bold text-slate-800 dark:text-slate-100 text-base mb-2 flex items-start gap-1">
       <svg class="w-5 h-5 text-slate-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
       <span class="truncate">${o.customer_address}</span>
     </p>
+    <div class="flex justify-between items-center text-[10px] text-slate-400 font-semibold uppercase mb-2.5">
+      <span>👤 Temsilci: ${o.created_by || "—"}</span>
+      <span class="text-indigo-600 dark:text-indigo-400 normal-case font-bold">🎯 Alıcı: ${o.recipient || "Genel"}</span>
+    </div>
     <p class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 bg-indigo-50 dark:bg-indigo-500/10 px-3 py-2 rounded-xl border border-indigo-100 dark:border-indigo-500/20">
       <svg class="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
       <span>Hazırlayan: <b>${o.picked_by || "—"}</b></span>
@@ -360,7 +371,7 @@ function renderHazirlaniyorCard(o) {
   <div class="border-t border-slate-100 dark:border-slate-800 pt-3 flex gap-2">
     ${
       canAccess
-        ? `<button onclick="openModal('${o.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs py-2.5 rounded-xl font-bold transition-all shadow-sm flex items-center justify-center gap-1">
+        ? `<button onclick="openModal('${o.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs py-2.5 rounded-xl font-bold transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
             Detay ve Tamamla
            </button>`
@@ -369,7 +380,7 @@ function renderHazirlaniyorCard(o) {
             <span>Kilitli</span>
            </div>
            <button onclick="takeoverPicking('${o.id}')" 
-                   class="bg-slate-100 dark:bg-slate-700 hover:bg-amber-600 hover:text-white dark:hover:bg-amber-600 text-slate-600 dark:text-slate-300 px-3 py-2.5 rounded-xl font-bold text-xs transition-all active:scale-95 flex items-center justify-center gap-0.5 border border-slate-200 dark:border-slate-700" 
+                   class="bg-slate-100 dark:bg-slate-700 hover:bg-amber-600 hover:text-white dark:hover:bg-amber-600 text-slate-600 dark:text-slate-300 px-3 py-2.5 rounded-xl font-bold text-xs transition-all active:scale-95 flex items-center justify-center gap-0.5 border border-slate-200 dark:border-slate-700 cursor-pointer" 
                    title="Görevi Devral">
              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
              Devral
@@ -580,9 +591,10 @@ async function completeOrder() {
     backorder = {
       id: generateId(),
       customer_address: order.customer_address,
-      urgency: "Acil",
+      recipient: order.recipient || "Genel",
+      urgency: "Çok Acil",
       status: "Bekliyor",
-      created_by: state.activeUser,
+      created_by: state.activeUser || "Bilinmeyen",
       created_at: new Date().toISOString(),
       picked_by: null,
       parent_order_id: order.id,
@@ -592,7 +604,7 @@ async function completeOrder() {
         fulfilled_quantity: i.requested_quantity - i.fulfilled_quantity,
       })),
     };
-    voiceMsg = `Sipariş tamamlandı. Eksik kalan ürünler için yeni sipariş oluşturuldu.`;
+    voiceMsg = `Sipariş tamamlandı. Eksik kalan ürünler için çok acil statüsünde yeni sipariş oluşturuldu.`;
   } else {
     voiceMsg = `Sipariş tamamlandı.`;
   }
@@ -688,8 +700,9 @@ function renderHistory() {
       <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
       <span>${o.customer_address}</span>
     </p>
-    <div class="flex gap-4 text-xs text-slate-500 dark:text-slate-400 font-medium">
-      <span>👤 Oluşturan: <b>${o.created_by}</b></span>
+    <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
+      <span>👤 Temsilci: <b>${o.created_by || "—"}</b></span>
+      <span>🎯 Alıcı: <b>${o.recipient || "Genel"}</b></span>
       <span>👷 Hazırlayan: <b>${o.picked_by || "—"}</b></span>
     </div>
   </div>
@@ -840,4 +853,40 @@ function showCustomConfirm(title, message) {
     btnCancel.onclick = () => cleanup(false);
     btnOk.onclick = () => cleanup(true);
   });
+}
+
+async function clearAllHistory() {
+  if (state.activeUser !== "Admin") {
+    showToast("Geçmişi temizleme yetkiniz yok!", "error");
+    return;
+  }
+
+  const confirmed = await showCustomConfirm(
+    "Geçmişi Temizle?",
+    "Tamamlanmış tüm geçmiş siparişleri kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz!"
+  );
+
+  if (!confirmed) return;
+
+  if (supabaseClient) {
+    try {
+      const { error } = await supabaseClient
+        .from('orders')
+        .delete()
+        .eq('status', 'Tamamlandı');
+      if (error) throw error;
+
+      showToast("Geçmiş siparişler başarıyla temizlendi!", "success");
+      await syncWithSupabase(true);
+    } catch (err) {
+      console.error("Geçmişi temizleme hatası:", err);
+      showToast("Buluttan geçmiş siparişler silinemedi!", "error");
+    }
+  } else {
+    state.orders = state.orders.filter(o => o.status !== "Tamamlandı");
+    saveState();
+    renderHistory();
+    updateStats();
+    showToast("Geçmiş siparişler yerel olarak temizlendi!", "success");
+  }
 }

@@ -10,38 +10,61 @@ function showProfileScreen() {
 function renderProfiles() {
   const container = document.getElementById("profile-list");
   if (!container) return;
+
+  if (!state.profiles.includes("Admin")) {
+    state.profiles.unshift("Admin");
+  }
+
+  const otherProfiles = state.profiles.filter(p => p !== "Admin").sort();
+  const displayList = ["Admin", ...otherProfiles];
   
-  container.innerHTML = state.profiles
+  container.innerHTML = displayList
     .map(
-      (name) => `
+      (name) => {
+        const isAdmin = name === "Admin";
+        const deleteButton = isAdmin
+          ? ""
+          : `<button onclick="confirmDeleteProfile('${name}', event)" 
+                  class="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-900/30 text-red-400 hover:bg-red-600 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all duration-200"
+                  title="Personeli Sil">
+               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+             </button>`;
+
+        return `
   <div class="relative group bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-indigo-500 transition-all duration-200 animate-slide-in" 
        onclick="selectProfile('${name}')">
     
-    <!-- Profil Silme Butonu -->
-    <button onclick="confirmDeleteProfile('${name}', event)" 
-            class="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-900/30 text-red-400 hover:bg-red-600 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all duration-200"
-            title="Personeli Sil">
-      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-    </button>
+    ${deleteButton}
 
-    <div class="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl font-bold shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-200">
-      ${name.charAt(0).toUpperCase()}
+    <div class="w-14 h-14 ${isAdmin ? 'bg-amber-600' : 'bg-indigo-600'} text-white rounded-full flex items-center justify-center text-2xl font-bold shadow-md ${isAdmin ? 'shadow-amber-500/20' : 'shadow-indigo-500/20'} group-hover:scale-105 transition-transform duration-200">
+      ${isAdmin ? '👑' : name.charAt(0).toUpperCase()}
     </div>
-    <p class="text-white text-sm font-semibold tracking-wide text-center truncate max-w-full">${name}</p>
+    <p class="text-white text-sm font-semibold tracking-wide text-center truncate max-w-full">${isAdmin ? 'Süper Admin' : name}</p>
   </div>
-`,
+`;
+      }
     )
     .join("");
 }
 
-function selectProfile(name) {
+async function selectProfile(name) {
+  if (name === "Admin") {
+    const password = prompt("Lütfen Yönetici (Admin) şifresini girin:");
+    if (password !== state.adminPassword) {
+      showToast("Hatalı yönetici şifresi!", "error");
+      return;
+    }
+  }
+
   state.activeUser = name;
   saveState();
   document.getElementById("profile-screen").classList.add("hidden");
   document.getElementById("main-app").classList.remove("hidden");
   document.getElementById("header-username").textContent = name;
+  
+  if (typeof updateAdminUI === "function") updateAdminUI();
   switchTab(state.currentTab || "active");
-  speakText(`Hoş geldiniz ${name}.`);
+  speakText(`Hoş geldiniz ${name === 'Admin' ? 'Yönetici' : name}.`);
 }
 
 async function addNewProfile() {
@@ -59,6 +82,11 @@ async function addNewProfileAdmin() {
 }
 
 async function createProfile(name, inputElement) {
+  if (state.activeUser !== "Admin") {
+    showToast("Personel ekleme yetkiniz yok!", "error");
+    return;
+  }
+
   if (!name) {
     showToast("İsim boş olamaz!", "error");
     return;
@@ -95,6 +123,16 @@ async function createProfile(name, inputElement) {
 async function confirmDeleteProfile(name, event) {
   event.stopPropagation(); // Profil seçilmesini engelle
   
+  if (state.activeUser !== "Admin") {
+    showToast("Personel silme yetkiniz yok!", "error");
+    return;
+  }
+
+  if (name === "Admin") {
+    showToast("Süper Admin (Admin) profili silinemez!", "error");
+    return;
+  }
+
   if (confirm(`"${name}" adlı personeli silmek istediğinize emin misiniz? (Oluşturduğu siparişler kaybolmaz)`)) {
     
     if (supabaseClient) {
@@ -137,12 +175,14 @@ function renderAdminProfiles() {
   const container = document.getElementById("admin-profile-list");
   if (!container) return;
   
-  if (state.profiles.length === 0) {
+  const displayProfiles = state.profiles.filter(p => p !== "Admin");
+  
+  if (displayProfiles.length === 0) {
     container.innerHTML = `<p class="p-4 text-center text-xs text-slate-400">Hiç personel bulunamadı.</p>`;
     return;
   }
 
-  container.innerHTML = state.profiles
+  container.innerHTML = displayProfiles
     .map(
       (name) => `
       <div class="flex items-center justify-between p-3.5 hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors animate-slide-in">
