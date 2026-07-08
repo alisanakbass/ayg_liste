@@ -104,8 +104,8 @@ async function syncWithSupabase(triggerUI = true) {
     state.orders = dbOrders || [];
     state.profiles = (dbProfiles || []).map(p => p.name);
     
-    // Varsayılan profilleri koru (eğer veritabanı tamamen boşsa)
-    if (state.profiles.length === 0) {
+    // Varsayılan profilleri koru (eğer veritabanı tamamen boşsa ve yerel moddaysak)
+    if (state.profiles.length === 0 && !supabaseClient) {
       state.profiles = ["Ahmet", "Mehmet", "Ali", "Ayşe", "Fatma", "Hasan"];
     }
 
