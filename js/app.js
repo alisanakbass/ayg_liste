@@ -115,6 +115,7 @@ async function syncWithSupabase(triggerUI = true) {
       if (typeof renderActiveOrders === "function") renderActiveOrders();
       if (typeof renderHistory === "function") renderHistory();
       if (typeof renderProfiles === "function") renderProfiles();
+      if (typeof renderAdminProfiles === "function") renderAdminProfiles();
       if (typeof updateStats === "function") updateStats();
     }
   } catch (err) {
@@ -124,7 +125,7 @@ async function syncWithSupabase(triggerUI = true) {
 
 function switchTab(tab) {
   state.currentTab = tab;
-  ["create", "active", "history"].forEach((t) => {
+  ["create", "active", "history", "admin"].forEach((t) => {
     const page = document.getElementById(`page-${t}`);
     if (page) page.classList.add("hidden");
     const el = document.getElementById(`tab-${t}`);
@@ -161,6 +162,9 @@ function switchTab(tab) {
   }
   if (tab === "create" && typeof initOrderForm === "function" && !state.editingOrderId) {
     initOrderForm();
+  }
+  if (tab === "admin" && typeof renderAdminProfiles === "function") {
+    renderAdminProfiles();
   }
   if (typeof updateStats === "function") updateStats();
 }

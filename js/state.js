@@ -11,7 +11,9 @@ let state = {
   theme: "light",
   voiceEnabled: false,
   supabaseUrl: "https://fnwikxmspdxamsostbnb.supabase.co",
-  supabaseKey: "sb_publishable_tlsSFNjL-zfH-KUWShqIkQ_H5G97Hvd"
+  supabaseKey: "sb_publishable_tlsSFNjL-zfH-KUWShqIkQ_H5G97Hvd",
+  modalSortOrder: "unchecked-first", // 'normal', 'unchecked-first', 'checked-first'
+  currentModalOrder: null
 };
 
 let supabaseClient = null;

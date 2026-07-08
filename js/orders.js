@@ -17,6 +17,9 @@ function initOrderForm() {
   document.getElementById("order-urgency").value = "Normal";
   document.getElementById("order-items-list").innerHTML = "";
   
+  const createdByEl = document.getElementById("order-created-by");
+  if (createdByEl) createdByEl.value = state.activeUser || "";
+
   document.getElementById("create-page-title").textContent = "Yeni Sipariş Oluştur";
   document.getElementById("btn-save-order").querySelector('span').textContent = "Siparişi Kaydet";
   document.getElementById("btn-cancel-edit").classList.add("hidden");
@@ -63,6 +66,9 @@ function removeOrderItem(id) {
 async function saveOrder() {
   const address = document.getElementById("order-address").value.trim();
   const urgency = document.getElementById("order-urgency").value;
+  const createdByEl = document.getElementById("order-created-by");
+  const createdBy = createdByEl ? createdByEl.value.trim() || state.activeUser || "Bilinmeyen" : state.activeUser || "Bilinmeyen";
+
   if (!address) {
     showToast("Lütfen müşteri adresi girin!", "error");
     return;
@@ -98,7 +104,7 @@ async function saveOrder() {
       try {
         const { error } = await supabaseClient
           .from('orders')
-          .update({ customer_address: address, urgency, items })
+          .update({ customer_address: address, urgency, items, created_by: createdBy })
           .eq('id', state.editingOrderId);
         if (error) throw error;
         
@@ -117,6 +123,7 @@ async function saveOrder() {
         state.orders[orderIndex].customer_address = address;
         state.orders[orderIndex].urgency = urgency;
         state.orders[orderIndex].items = items;
+        state.orders[orderIndex].created_by = createdBy;
         
         showToast("Sipariş başarıyla güncellendi!", "success");
         voiceMsg = "Sipariş güncellendi.";
@@ -132,7 +139,7 @@ async function saveOrder() {
       customer_address: address,
       urgency,
       status: "Bekliyor",
-      created_by: state.activeUser,
+      created_by: createdBy,
       created_at: new Date().toISOString(),
       picked_by: null,
       items,
@@ -180,6 +187,9 @@ function editOrder(orderId) {
   document.getElementById("order-address").value = order.customer_address;
   document.getElementById("order-urgency").value = order.urgency;
   
+  const createdByEl = document.getElementById("order-created-by");
+  if (createdByEl) createdByEl.value = order.created_by || "";
+
   const list = document.getElementById("order-items-list");
   list.innerHTML = "";
   orderItemCount = 0;
@@ -444,6 +454,8 @@ function openModal(orderId) {
   const order = state.orders.find((o) => o.id === orderId);
   if (!order) return;
   state.modalOrderId = orderId;
+  state.currentModalOrder = order;
+  
   document.getElementById("modal-address").textContent = order.customer_address;
   document.getElementById("modal-picker").textContent = `👷 Hazırlayan: ${order.picked_by}`;
 
@@ -451,30 +463,78 @@ function openModal(orderId) {
   badge.textContent = `${URGENCY_ICON[order.urgency]} ${order.urgency}`;
   badge.className = `px-3 py-1 rounded-full text-xs font-bold ${URGENCY_BADGE[order.urgency]}`;
   
+  renderModalItems();
+  document.getElementById("detail-modal").classList.remove("hidden");
+}
+
+function renderModalItems() {
+  const order = state.currentModalOrder;
+  if (!order) return;
+
   const itemsContainer = document.getElementById("modal-items");
-  itemsContainer.innerHTML = order.items
+  if (!itemsContainer) return;
+
+  // Sıralama butonunun metnini güncelle
+  const sortBtn = document.getElementById("modal-sort-btn");
+  if (sortBtn) {
+    if (state.modalSortOrder === "unchecked-first") {
+      sortBtn.textContent = "⇅ Sırala: Tiksizler Üstte";
+    } else if (state.modalSortOrder === "checked-first") {
+      sortBtn.textContent = "⇅ Sırala: Tikliler Üstte";
+    } else {
+      sortBtn.textContent = "⇅ Sırala: Varsayılan";
+    }
+  }
+
+  // Orijinal indeksleri koruyarak eşle
+  let mappedItems = order.items.map((item, idx) => ({ ...item, originalIndex: idx }));
+
+  if (state.modalSortOrder === "unchecked-first") {
+    mappedItems.sort((a, b) => (a.checked === b.checked) ? 0 : a.checked ? 1 : -1);
+  } else if (state.modalSortOrder === "checked-first") {
+    mappedItems.sort((a, b) => (a.checked === b.checked) ? 0 : a.checked ? -1 : 1);
+  }
+
+  itemsContainer.innerHTML = mappedItems
     .map(
-      (item, idx) => `
-<div class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-slide-in">
-  <div>
-    <p class="font-bold text-slate-800 dark:text-slate-200 text-sm">📦 ${item.product_name}</p>
-    <p class="text-xs text-slate-400 dark:text-slate-500 font-semibold mt-0.5 uppercase tracking-wide">Talep Edilen: ${item.requested_quantity} Adet</p>
+      (item) => {
+        const isChecked = item.checked || false;
+        const rowClass = isChecked 
+          ? "bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/60" 
+          : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700";
+
+        return `
+<div class="border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors duration-200 ${rowClass}">
+  <div class="flex items-center gap-3 flex-1 min-w-0">
+    <!-- Tik Kutusu -->
+    <button onclick="toggleItemChecked(${item.originalIndex}, event)" 
+      class="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-all active:scale-90 cursor-pointer ${
+        isChecked 
+          ? "bg-emerald-600 border-emerald-600 text-white" 
+          : "border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-transparent"
+      }">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+    </button>
+    <div class="min-w-0 flex-1">
+      <p class="font-bold text-slate-800 dark:text-slate-200 text-sm truncate ${isChecked ? 'line-through text-slate-400 dark:text-slate-500' : ''}">📦 ${item.product_name}</p>
+      <p class="text-xs text-slate-400 dark:text-slate-500 font-semibold mt-0.5 uppercase tracking-wide">Talep Edilen: ${item.requested_quantity} Adet</p>
+    </div>
   </div>
   <div class="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 border-slate-200 dark:border-slate-800 pt-2 sm:pt-0">
     <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold">Depodaki:</span>
-    <div class="flex items-center gap-1.5">
-      <button onclick="adjustQty(${idx}, -1)" class="w-8 h-8 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 rounded-lg font-bold text-lg hover:bg-red-100 dark:hover:bg-red-500/20 active:scale-90 transition-all flex items-center justify-center">−</button>
-      <input type="number" id="fulfilled-${idx}" value="${item.fulfilled_quantity}" min="0" max="${item.requested_quantity}"
+    <div class="flex items-center gap-1.5 font-bold">
+      <button onclick="adjustQty(${item.originalIndex}, -1); saveModalOrderProgress();" class="w-8 h-8 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 rounded-lg font-bold text-lg hover:bg-red-100 dark:hover:bg-red-500/20 active:scale-90 transition-all flex items-center justify-center" ${isChecked ? 'disabled opacity-50' : ''}>−</button>
+      <input type="number" id="fulfilled-${item.originalIndex}" value="${item.fulfilled_quantity}" min="0" max="${item.requested_quantity}"
         class="w-14 text-center border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-lg py-1.5 font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-        onchange="validateQty(${idx}, ${item.requested_quantity})" />
-      <button onclick="adjustQty(${idx}, 1, ${item.requested_quantity})" class="w-8 h-8 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/20 rounded-lg font-bold text-lg hover:bg-green-100 dark:hover:bg-green-200 active:scale-90 transition-all flex items-center justify-center">+</button>
+        onchange="validateQty(${item.originalIndex}, ${item.requested_quantity}); saveModalOrderProgress();" ${isChecked ? 'disabled' : ''} />
+      <button onclick="adjustQty(${item.originalIndex}, 1, ${item.requested_quantity}); saveModalOrderProgress();" class="w-8 h-8 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/20 rounded-lg font-bold text-lg hover:bg-green-100 dark:hover:bg-green-200 active:scale-90 transition-all flex items-center justify-center" ${isChecked ? 'disabled opacity-50' : ''}>+</button>
     </div>
   </div>
 </div>
-`,
+`;
+      }
     )
     .join("");
-  document.getElementById("detail-modal").classList.remove("hidden");
 }
 
 function adjustQty(idx, delta, max) {
@@ -679,4 +739,105 @@ function updateStats() {
   const countHazirlaniyor = document.getElementById("count-hazirlaniyor");
   if (countBekliyor) countBekliyor.textContent = bekliyor;
   if (countHazirlaniyor) countHazirlaniyor.textContent = hazirlaniyor;
+}
+
+async function toggleItemChecked(idx, event) {
+  event.stopPropagation();
+  const order = state.currentModalOrder;
+  if (!order) return;
+  const item = order.items[idx];
+  if (!item) return;
+
+  const currentChecked = item.checked || false;
+
+  if (!currentChecked) {
+    const confirmed = await showCustomConfirm(
+      "Ürün Toplandı mı?",
+      `"${item.product_name}" ürününün tamamını (${item.requested_quantity} adet) topladığınızdan emin misiniz?`
+    );
+    
+    if (confirmed) {
+      item.checked = true;
+      item.fulfilled_quantity = item.requested_quantity; // otomatik tamamla
+      await saveModalOrderProgress();
+    }
+  } else {
+    const confirmed = await showCustomConfirm(
+      "İşareti Kaldır?",
+      `"${item.product_name}" ürünü üzerindeki toplandı işaretini kaldırmak istiyor musunuz?`
+    );
+    
+    if (confirmed) {
+      item.checked = false;
+      await saveModalOrderProgress();
+    }
+  }
+}
+
+async function saveModalOrderProgress() {
+  const order = state.currentModalOrder;
+  if (!order) return;
+
+  order.items.forEach((item, idx) => {
+    const input = document.getElementById(`fulfilled-${idx}`);
+    if (input) item.fulfilled_quantity = parseInt(input.value) || 0;
+  });
+
+  if (supabaseClient) {
+    try {
+      const { error } = await supabaseClient
+        .from('orders')
+        .update({ items: order.items })
+        .eq('id', order.id);
+      if (error) throw error;
+      
+      renderModalItems();
+      if (typeof renderActiveOrders === "function") renderActiveOrders();
+    } catch (err) {
+      console.error("Sipariş ilerlemesi kaydedilemedi:", err);
+      showToast("İlerleme buluta kaydedilemedi!", "error");
+    }
+  } else {
+    saveState();
+    renderModalItems();
+    if (typeof renderActiveOrders === "function") renderActiveOrders();
+  }
+}
+
+function toggleModalSort() {
+  if (state.modalSortOrder === "unchecked-first") {
+    state.modalSortOrder = "checked-first";
+  } else if (state.modalSortOrder === "checked-first") {
+    state.modalSortOrder = "normal";
+  } else {
+    state.modalSortOrder = "unchecked-first";
+  }
+  renderModalItems();
+}
+
+function showCustomConfirm(title, message) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("confirm-modal");
+    if (!modal) {
+      resolve(confirm(`${title}\n\n${message}`));
+      return;
+    }
+
+    document.getElementById("confirm-title").textContent = title;
+    document.getElementById("confirm-message").textContent = message;
+    modal.classList.remove("hidden");
+
+    const btnCancel = document.getElementById("confirm-btn-cancel");
+    const btnOk = document.getElementById("confirm-btn-ok");
+
+    const cleanup = (result) => {
+      modal.classList.add("hidden");
+      btnCancel.onclick = null;
+      btnOk.onclick = null;
+      resolve(result);
+    };
+
+    btnCancel.onclick = () => cleanup(false);
+    btnOk.onclick = () => cleanup(true);
+  });
 }
