@@ -1,0 +1,45 @@
+body {
+  font-family: 'Inter', sans-serif;
+}
+.tab-active {
+  border-bottom: 3px solid #6366f1;
+  color: #6366f1;
+  font-weight: 700;
+}
+.dark .tab-active {
+  border-bottom: 3px solid #818cf8;
+  color: #818cf8;
+}
+.toast {
+  animation: slideIn 0.3s ease forwards, fadeOut 0.5s ease 4s forwards;
+}
+@keyframes slideIn {
+  from { transform: translateY(100px) scale(0.9); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; transform: translateY(-20px); }
+}
+.glass {
+  backdrop-filter: blur(12px);
+  background-color: rgba(255, 255, 255, 0.8);
+}
+.dark .glass {
+  background-color: rgba(15, 23, 42, 0.85);
+}
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
