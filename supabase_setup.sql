@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
     status TEXT NOT NULL,
     created_by TEXT NOT NULL,
     recipient TEXT,
+    parent_order_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     completed_at TIMESTAMP WITH TIME ZONE,
     picked_by TEXT,

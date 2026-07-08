@@ -33,17 +33,17 @@ function addOrderItem(name = "", qty = 1) {
   const id = `item-${orderItemCount}`;
   const div = document.createElement("div");
   div.className =
-    "flex gap-2 items-center bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 animate-slide-in";
+    "flex gap-1.5 sm:gap-2 items-center bg-slate-50 dark:bg-slate-900/60 p-1.5 sm:p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 animate-slide-in";
   div.id = id;
   div.innerHTML = `
 <input type="text" placeholder="Ürün adı" 
-  class="flex-1 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm text-slate-800 dark:text-white" 
+  class="flex-1 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-2 sm:px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs sm:text-sm text-slate-800 dark:text-white" 
   id="${id}-name" value="${name}" />
 <input type="number" placeholder="Adet" min="1"
-  class="w-20 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-2 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm text-center text-slate-800 dark:text-white font-bold" 
+  class="w-16 sm:w-20 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-1 sm:px-2 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs sm:text-sm text-center text-slate-800 dark:text-white font-bold" 
   id="${id}-qty" value="${qty}" />
 <button onclick="removeOrderItem('${id}')" 
-  class="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 p-1.5 rounded-lg active:scale-90 transition-all"
+  class="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 p-1.5 rounded-lg active:scale-90 transition-all cursor-pointer"
   title="Ürünü Çıkar">
   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
 </button>
@@ -244,9 +244,19 @@ function getFilteredOrders(orders, searchInputId, urgencyFilterId) {
 
   const search = searchInput.value.toLowerCase().trim();
   const urgency = urgencyFilter.value;
+  
+  const dateFilter = document.getElementById("history-date-filter");
+  const filterDateVal = dateFilter ? dateFilter.value : "";
 
   return orders.filter(o => {
     const matchUrgency = urgency === "All" || o.urgency === urgency;
+    
+    let matchDate = true;
+    if (filterDateVal && o.completed_at) {
+      const oDate = new Date(o.completed_at).toDateString();
+      const fDate = new Date(filterDateVal).toDateString();
+      matchDate = oDate === fDate;
+    }
     const matchSearch = !search || 
       o.customer_address.toLowerCase().includes(search) ||
       (o.created_by && o.created_by.toLowerCase().includes(search)) ||
@@ -254,7 +264,7 @@ function getFilteredOrders(orders, searchInputId, urgencyFilterId) {
       (o.picked_by && o.picked_by.toLowerCase().includes(search)) ||
       o.items.some(i => i.product_name.toLowerCase().includes(search));
     
-    return matchUrgency && matchSearch;
+    return matchUrgency && matchSearch && matchDate;
   });
 }
 
@@ -485,6 +495,18 @@ function renderModalItems() {
   const itemsContainer = document.getElementById("modal-items");
   if (!itemsContainer) return;
 
+  const isCompleted = order.status === "Tamamlandı";
+  
+  // Siparişi tamamla butonunu göster/gizle
+  const completeBtn = document.getElementById("btn-complete-order");
+  if (completeBtn) {
+    if (isCompleted) {
+      completeBtn.classList.add("hidden");
+    } else {
+      completeBtn.classList.remove("hidden");
+    }
+  }
+
   // Sıralama butonunun metnini güncelle
   const sortBtn = document.getElementById("modal-sort-btn");
   if (sortBtn) {
@@ -514,12 +536,17 @@ function renderModalItems() {
           ? "bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/60" 
           : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700";
 
+        const disableControls = isCompleted || isChecked ? 'disabled opacity-50' : '';
+        const disableInput = isCompleted || isChecked ? 'disabled' : '';
+        const disableTick = isCompleted ? 'disabled opacity-50 cursor-not-allowed' : 'cursor-pointer';
+        const tickAction = isCompleted ? '' : `onclick="toggleItemChecked(${item.originalIndex}, event)"`;
+
         return `
 <div class="border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors duration-200 ${rowClass}">
   <div class="flex items-center gap-3 flex-1 min-w-0">
     <!-- Tik Kutusu -->
-    <button onclick="toggleItemChecked(${item.originalIndex}, event)" 
-      class="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-all active:scale-90 cursor-pointer ${
+    <button ${tickAction} ${isCompleted ? 'disabled' : ''}
+      class="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-all active:scale-90 ${disableTick} ${
         isChecked 
           ? "bg-emerald-600 border-emerald-600 text-white" 
           : "border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-transparent"
@@ -534,11 +561,11 @@ function renderModalItems() {
   <div class="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 border-slate-200 dark:border-slate-800 pt-2 sm:pt-0">
     <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold">Depodaki:</span>
     <div class="flex items-center gap-1.5 font-bold">
-      <button onclick="adjustQty(${item.originalIndex}, -1); saveModalOrderProgress();" class="w-8 h-8 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 rounded-lg font-bold text-lg hover:bg-red-100 dark:hover:bg-red-500/20 active:scale-90 transition-all flex items-center justify-center" ${isChecked ? 'disabled opacity-50' : ''}>−</button>
+      <button onclick="adjustQty(${item.originalIndex}, -1); saveModalOrderProgress();" class="w-8 h-8 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 rounded-lg font-bold text-lg hover:bg-red-100 dark:hover:bg-red-500/20 active:scale-90 transition-all flex items-center justify-center" ${disableControls}>−</button>
       <input type="number" id="fulfilled-${item.originalIndex}" value="${item.fulfilled_quantity}" min="0" max="${item.requested_quantity}"
         class="w-14 text-center border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-lg py-1.5 font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-        onchange="validateQty(${item.originalIndex}, ${item.requested_quantity}); saveModalOrderProgress();" ${isChecked ? 'disabled' : ''} />
-      <button onclick="adjustQty(${item.originalIndex}, 1, ${item.requested_quantity}); saveModalOrderProgress();" class="w-8 h-8 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/20 rounded-lg font-bold text-lg hover:bg-green-100 dark:hover:bg-green-200 active:scale-90 transition-all flex items-center justify-center" ${isChecked ? 'disabled opacity-50' : ''}>+</button>
+        onchange="validateQty(${item.originalIndex}, ${item.requested_quantity}); saveModalOrderProgress();" ${disableInput} />
+      <button onclick="adjustQty(${item.originalIndex}, 1, ${item.requested_quantity}); saveModalOrderProgress();" class="w-8 h-8 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/20 rounded-lg font-bold text-lg hover:bg-green-100 dark:hover:bg-green-200 active:scale-90 transition-all flex items-center justify-center" ${disableControls}>+</button>
     </div>
   </div>
 </div>
@@ -685,10 +712,38 @@ function renderHistory() {
       ? '<div class="text-slate-400 dark:text-slate-500 text-sm text-center py-12 bg-white dark:bg-slate-800 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">Geçmişte aranan kriterde sipariş bulunamadı</div>'
       : filtered
           .map(
-            (o) => `
+            (o) => {
+              const totalItemsCount = o.items.length;
+              const totalQty = o.items.reduce((sum, i) => sum + (parseInt(i.fulfilled_quantity) || 0), 0);
+              
+              const isFullyFulfilled = o.items.every(
+                (i) => (parseInt(i.fulfilled_quantity) || 0) === (parseInt(i.requested_quantity) || 0)
+              );
+
+              const fulfillmentBadge = isFullyFulfilled
+                ? `<span class="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-0.5 shadow-sm">
+                    <span>✓</span> Eksiksiz
+                   </span>`
+                : `<span class="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60 flex items-center gap-0.5 shadow-sm">
+                    <span>⚠</span> Kısmi (Eksikli)
+                   </span>`;
+
+              const isAdmin = state.activeUser === "Admin";
+              const deleteButton = isAdmin
+                ? `<button onclick="deleteHistoryOrder('${o.id}')" 
+                    class="bg-red-50 dark:bg-red-500/10 hover:bg-red-600 hover:text-white text-red-600 dark:text-red-400 text-xs px-3.5 py-2.5 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-1 cursor-pointer border border-red-200 dark:border-red-500/20" 
+                    title="Siparişi Sil">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                   </button>`
+                : "";
+
+              return `
 <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-5 space-y-4 hover:border-slate-300 transition-all animate-slide-in">
   <div class="flex justify-between items-center">
-    <span class="px-2.5 py-1 rounded-full text-xs font-bold ${URGENCY_BADGE[o.urgency]}">${URGENCY_ICON[o.urgency]} ${o.urgency}</span>
+    <div class="flex flex-wrap gap-1.5 items-center">
+      <span class="px-2.5 py-1 rounded-full text-xs font-bold ${URGENCY_BADGE[o.urgency]}">${URGENCY_ICON[o.urgency]} ${o.urgency}</span>
+      ${fulfillmentBadge}
+    </div>
     <span class="text-xs text-slate-400 dark:text-slate-500 font-semibold flex items-center gap-1">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
       <span>T.Tarihi: ${formatDate(o.completed_at || o.created_at)}</span>
@@ -707,27 +762,62 @@ function renderHistory() {
     </div>
   </div>
 
-  <div class="border-t border-slate-100 dark:border-slate-700/60 pt-3">
-    <p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mb-2">Tamamlanan Ürün Listesi</p>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-      ${o.items
-        .map(
-          (i) => `
-        <div class="flex justify-between text-xs py-2 px-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-800/80">
-          <span class="text-slate-700 dark:text-slate-300 font-medium">${i.product_name}</span>
-          <span class="${i.fulfilled_quantity < i.requested_quantity ? "text-red-500 dark:text-red-400 font-bold" : "text-emerald-600 dark:text-emerald-400 font-bold"}">
-            ${i.fulfilled_quantity}/${i.requested_quantity} Adet
-          </span>
-        </div>
-      `,
-        )
-        .join("")}
-    </div>
+  <div class="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-3">
+    <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-1">
+      <span>📦 ${totalItemsCount} Kalem Ürün</span>
+      <span class="text-slate-300 dark:text-slate-600">|</span>
+      <span>Toplam ${totalQty} adet toplandı</span>
+    </span>
+  </div>
+
+  <div class="flex gap-2">
+    <button onclick="openModal('${o.id}')" 
+      class="flex-1 bg-slate-100 hover:bg-indigo-600 hover:text-white dark:bg-slate-700/60 text-slate-700 dark:text-slate-200 text-xs py-2.5 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer">
+      Detayları Gör
+    </button>
+    ${deleteButton}
   </div>
 </div>
-`,
+`;
+            }
           )
           .join("");
+}
+
+async function deleteHistoryOrder(orderId) {
+  if (state.activeUser !== "Admin") {
+    showToast("Bu işlemi sadece yönetici yapabilir!", "error");
+    return;
+  }
+
+  const confirmed = await showCustomConfirm(
+    "Siparişi Sil?",
+    "Bu tamamlanmış siparişi geçmişten kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz!"
+  );
+
+  if (!confirmed) return;
+
+  if (supabaseClient) {
+    try {
+      const { error } = await supabaseClient
+        .from('orders')
+        .delete()
+        .eq('id', orderId);
+      if (error) throw error;
+
+      showToast("Sipariş geçmişten silindi.", "warning");
+      await syncWithSupabase(true);
+    } catch (err) {
+      console.error("Geçmiş sipariş silme hatası:", err);
+      showToast("Buluttan sipariş silinemedi!", "error");
+    }
+  } else {
+    state.orders = state.orders.filter(o => o.id !== orderId);
+    saveState();
+    renderHistory();
+    updateStats();
+    showToast("Sipariş yerel geçmişten silindi.", "warning");
+  }
 }
 
 function updateStats() {

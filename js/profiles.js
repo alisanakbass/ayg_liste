@@ -22,20 +22,11 @@ function renderProfiles() {
     .map(
       (name) => {
         const isAdmin = name === "Admin";
-        const deleteButton = isAdmin
-          ? ""
-          : `<button onclick="confirmDeleteProfile('${name}', event)" 
-                  class="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-900/30 text-red-400 hover:bg-red-600 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all duration-200"
-                  title="Personeli Sil">
-               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-             </button>`;
 
         return `
   <div class="relative group bg-slate-900 border-2 border-slate-800 rounded-2xl p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-indigo-500 transition-all duration-200 animate-slide-in" 
        onclick="selectProfile('${name}')">
     
-    ${deleteButton}
-
     <div class="w-14 h-14 ${isAdmin ? 'bg-amber-600' : 'bg-indigo-600'} text-white rounded-full flex items-center justify-center text-2xl font-bold shadow-md ${isAdmin ? 'shadow-amber-500/20' : 'shadow-indigo-500/20'} group-hover:scale-105 transition-transform duration-200">
       ${isAdmin ? '👑' : name.charAt(0).toUpperCase()}
     </div>
@@ -47,9 +38,46 @@ function renderProfiles() {
     .join("");
 }
 
+function showCustomPasswordModal() {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("password-modal");
+    const input = document.getElementById("admin-password-input");
+    if (!modal || !input) {
+      const password = prompt("Lütfen Yönetici (Admin) şifresini girin:");
+      resolve(password);
+      return;
+    }
+
+    input.value = "";
+    modal.classList.remove("hidden");
+    setTimeout(() => input.focus(), 50);
+
+    const btnCancel = document.getElementById("password-btn-cancel");
+    const btnConfirm = document.getElementById("password-btn-confirm");
+
+    const cleanup = (result) => {
+      modal.classList.add("hidden");
+      btnCancel.onclick = null;
+      btnConfirm.onclick = null;
+      input.onkeypress = null;
+      resolve(result);
+    };
+
+    btnCancel.onclick = () => cleanup(null);
+    btnConfirm.onclick = () => cleanup(input.value);
+    
+    input.onkeypress = (event) => {
+      if (event.key === "Enter") {
+        cleanup(input.value);
+      }
+    };
+  });
+}
+
 async function selectProfile(name) {
   if (name === "Admin") {
-    const password = prompt("Lütfen Yönetici (Admin) şifresini girin:");
+    const password = await showCustomPasswordModal();
+    if (password === null) return; // Kullanıcı iptal etti
     if (password !== state.adminPassword) {
       showToast("Hatalı yönetici şifresi!", "error");
       return;
