@@ -12,6 +12,7 @@ function initBroadcastChannel() {
         state.orders = e.data.orders;
         saveState();
         if (typeof renderActiveOrders === "function") renderActiveOrders();
+        if (typeof renderShippingOrders === "function") renderShippingOrders();
         if (typeof renderHistory === "function") renderHistory();
         if (typeof updateStats === "function") updateStats();
         if (e.data.voiceMsg) {
@@ -40,6 +41,7 @@ function broadcastUpdate(voiceMsg) {
 // Supabase Real-time Dinleyicisi
 let supabaseChannelOrders = null;
 let supabaseChannelProfiles = null;
+let supabaseChannelVehicles = null;
 
 function initSupabaseRealtime() {
   if (!supabaseClient) return;
@@ -48,6 +50,7 @@ function initSupabaseRealtime() {
     // Önceki kanalları kapat
     if (supabaseChannelOrders) supabaseClient.removeChannel(supabaseChannelOrders);
     if (supabaseChannelProfiles) supabaseClient.removeChannel(supabaseChannelProfiles);
+    if (supabaseChannelVehicles) supabaseClient.removeChannel(supabaseChannelVehicles);
 
     supabaseChannelOrders = supabaseClient
       .channel('public:orders')
@@ -62,8 +65,14 @@ function initSupabaseRealtime() {
         } else if (payload.eventType === "UPDATE") {
           const oldRecord = payload.old;
           const newRecord = payload.new;
-          if (oldRecord.status !== newRecord.status && newRecord.status === "Tamamlandı") {
-            speakText("Sipariş tamamlandı.");
+          if (oldRecord.status !== newRecord.status) {
+            if (newRecord.status === "Tamamlandı") {
+              speakText("Sipariş tamamlandı.");
+            } else if (newRecord.status === "Yolda") {
+              speakText("Sipariş yola çıktı.");
+            } else if (newRecord.status === "Teslim Edildi") {
+              speakText("Sipariş teslim edildi.");
+            }
           }
         }
       })
@@ -72,6 +81,13 @@ function initSupabaseRealtime() {
     supabaseChannelProfiles = supabaseClient
       .channel('public:profiles')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, async (payload) => {
+        await syncWithSupabase(false);
+      })
+      .subscribe();
+
+    supabaseChannelVehicles = supabaseClient
+      .channel('public:vehicles')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' }, async (payload) => {
         await syncWithSupabase(false);
       })
       .subscribe();
@@ -100,9 +116,21 @@ async function syncWithSupabase(triggerUI = true) {
 
     if (profilesErr) throw profilesErr;
 
+    // Araçları çek
+    let dbVehicles = [];
+    const { data: dbVeh, error: vehErr } = await supabaseClient
+      .from("vehicles")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (!vehErr) {
+      dbVehicles = dbVeh || [];
+    }
+
     // State'i güncelle
     state.orders = dbOrders || [];
     state.profiles = (dbProfiles || []).map(p => p.name);
+    state.vehicles = dbVehicles || [];
     
     // Varsayılan profilleri koru (eğer veritabanı tamamen boşsa ve yerel moddaysak)
     if (state.profiles.length === 0 && !supabaseClient) {
@@ -113,9 +141,11 @@ async function syncWithSupabase(triggerUI = true) {
 
     if (triggerUI) {
       if (typeof renderActiveOrders === "function") renderActiveOrders();
+      if (typeof renderShippingOrders === "function") renderShippingOrders();
       if (typeof renderHistory === "function") renderHistory();
       if (typeof renderProfiles === "function") renderProfiles();
       if (typeof renderAdminProfiles === "function") renderAdminProfiles();
+      if (typeof renderAdminVehicles === "function") renderAdminVehicles();
       if (typeof updateStats === "function") updateStats();
       if (typeof updateAdminUI === "function") updateAdminUI();
     }
@@ -131,7 +161,7 @@ function switchTab(tab) {
   }
   
   state.currentTab = tab;
-  ["create", "active", "history", "admin"].forEach((t) => {
+  ["create", "active", "shipping", "history", "admin"].forEach((t) => {
     const page = document.getElementById(`page-${t}`);
     if (page) page.classList.add("hidden");
     const el = document.getElementById(`tab-${t}`);
@@ -150,10 +180,10 @@ function switchTab(tab) {
     activeEl.classList.remove("text-slate-500", "dark:text-slate-400");
   }
 
-  // Dashboard paneli sadece Aktif ve Geçmiş sayfalarında gösterilir
+  // Dashboard paneli sadece Aktif, Sevkiyat ve Geçmiş sayfalarında gösterilir
   const dashboard = document.getElementById("dashboard-panel");
   if (dashboard) {
-    if (tab === "active" || tab === "history") {
+    if (tab === "active" || tab === "shipping" || tab === "history") {
       dashboard.classList.remove("hidden");
     } else {
       dashboard.classList.add("hidden");
@@ -163,14 +193,20 @@ function switchTab(tab) {
   if (tab === "active" && typeof renderActiveOrders === "function") {
     renderActiveOrders();
   }
+  if (tab === "shipping" && typeof renderShippingOrders === "function") {
+    renderShippingOrders();
+    if (typeof initShippingMap === "function") {
+      initShippingMap();
+    }
+  }
   if (tab === "history" && typeof renderHistory === "function") {
     renderHistory();
   }
   if (tab === "create" && typeof initOrderForm === "function" && !state.editingOrderId) {
     initOrderForm();
   }
-  if (tab === "admin" && typeof renderAdminProfiles === "function") {
-    renderAdminProfiles();
+  if (tab === "admin" && typeof switchAdminSubTab === "function") {
+    switchAdminSubTab("profiles");
   }
   if (typeof updateStats === "function") updateStats();
 }
@@ -255,7 +291,16 @@ async function init() {
     const headerUser = document.getElementById("header-username");
     if (headerUser) headerUser.textContent = state.activeUser;
     if (typeof updateAdminUI === "function") updateAdminUI();
-    switchTab("active");
+
+    // Yolda olan sipariş için konum takibini otomatik olarak sürdür
+    if (typeof initDriverLocationTracking === "function") {
+      const activeYoldaOrder = state.orders.find(o => o.status === "Yolda" && (o.picked_by === state.activeUser || o.created_by === state.activeUser));
+      if (activeYoldaOrder) {
+        initDriverLocationTracking(activeYoldaOrder.id);
+      }
+    }
+
+    switchTab(state.currentTab || "active");
   } else {
     if (typeof showProfileScreen === "function") showProfileScreen();
   }
@@ -264,6 +309,7 @@ async function init() {
 function updateAdminUI() {
   const tabAdmin = document.getElementById("tab-admin");
   const btnClearHistory = document.getElementById("btn-clear-history");
+  const btnSettingsToggle = document.getElementById("btn-settings-toggle");
   
   const isSuper = state.activeUser === "Admin";
   
@@ -283,6 +329,14 @@ function updateAdminUI() {
       btnClearHistory.classList.remove("hidden");
     } else {
       btnClearHistory.classList.add("hidden");
+    }
+  }
+
+  if (btnSettingsToggle) {
+    if (isSuper) {
+      btnSettingsToggle.classList.remove("hidden");
+    } else {
+      btnSettingsToggle.classList.add("hidden");
     }
   }
 }

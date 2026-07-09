@@ -4,10 +4,22 @@
 let state = {
   activeUser: null,
   profiles: ["Ahmet", "Mehmet", "Ali", "Ayşe", "Fatma", "Hasan"],
+  vehicles: [],
   orders: [],
   currentTab: "active",
   modalOrderId: null,
+  shippingOrderId: null,
   editingOrderId: null, // Düzenlenen siparişin ID'si
+  historyPage: 1, // Geçmiş sekmesi sayfa numarası
+  pickerLat: null,
+  pickerLng: null,
+  pickerMarker: null,
+  pickerMapInstance: null,
+  isMapCollapsed: true,
+  mapInstance: null,
+  mapMarkers: {},
+  activeGeolocationWatch: null,
+  wakeLockInstance: null,
   theme: "light",
   voiceEnabled: false,
   supabaseUrl: "https://fnwikxmspdxamsostbnb.supabase.co",
@@ -24,6 +36,7 @@ function loadState() {
   if (saved) {
     const parsed = JSON.parse(saved);
     state.profiles = parsed.profiles || state.profiles;
+    state.vehicles = parsed.vehicles || [];
     state.orders = parsed.orders || [];
     state.activeUser = parsed.activeUser || null;
     state.theme = parsed.theme || "light";
@@ -46,6 +59,7 @@ function saveState() {
     "ayg-state",
     JSON.stringify({
       profiles: state.profiles,
+      vehicles: state.vehicles,
       orders: state.orders,
       activeUser: state.activeUser,
       theme: state.theme,

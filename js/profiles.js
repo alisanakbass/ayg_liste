@@ -2,6 +2,9 @@
 // PROFILE MANAGEMENT
 // =============================================
 function showProfileScreen() {
+  if (typeof clearDriverLocationTracking === "function") {
+    clearDriverLocationTracking();
+  }
   document.getElementById("profile-screen").classList.remove("hidden");
   document.getElementById("main-app").classList.add("hidden");
   renderProfiles();
@@ -84,6 +87,9 @@ async function selectProfile(name) {
     }
   }
 
+  if (typeof clearDriverLocationTracking === "function") {
+    clearDriverLocationTracking();
+  }
   state.activeUser = name;
   saveState();
   document.getElementById("profile-screen").classList.add("hidden");

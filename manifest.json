@@ -1,0 +1,22 @@
+{
+  "short_name": "AYG",
+  "name": "AYG Sipariş ve Depo Yönetimi",
+  "description": "AYG Canlı Sipariş, Depo Hazırlama ve Sevkiyat Takip Sistemi",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "index.html",
+  "background_color": "#4f46e5",
+  "theme_color": "#4f46e5",
+  "display": "standalone",
+  "orientation": "portrait"
+}

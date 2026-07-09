@@ -2,8 +2,16 @@
 <html lang="tr" class="scroll-smooth">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>AYG Sipariş ve Depo Yönetim Sistemi</title>
+    <!-- Mobil Ana Ekrana Ekleme (PWA) Desteği -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="AYG" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+    <link rel="manifest" href="manifest.json" />
     <!-- Google Fonts - Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -31,6 +39,9 @@
     </script>
     <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Leaflet Harita Kütüphanesi -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <!-- Custom Stylesheet -->
     <link rel="stylesheet" href="css/styles.css" />
   </head>
@@ -181,8 +192,9 @@
 
             <!-- Settings Toggle -->
             <button
+              id="btn-settings-toggle"
               onclick="openSettingsModal()"
-              class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all"
+              class="hidden p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all"
               title="Ayarlar"
             >
               <svg
@@ -274,6 +286,32 @@
               <span>Aktif</span>
             </button>
             <button
+              id="tab-shipping"
+              onclick="switchTab('shipping')"
+              class="flex-1 py-3 text-center text-sm font-medium text-slate-500 dark:text-slate-400 tab-btn border-b-2 border-transparent transition-all flex items-center justify-center gap-2"
+            >
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"
+                />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10M13 16h6m-6 0H6m13 0a2 2 0 002-2v-4a1 1 0 00-1-1h-6v7"
+                />
+              </svg>
+              <span>Sevkiyat</span>
+            </button>
+            <button
               id="tab-history"
               onclick="switchTab('history')"
               class="flex-1 py-3 text-center text-sm font-medium text-slate-500 dark:text-slate-400 tab-btn border-b-2 border-transparent transition-all flex items-center justify-center gap-2"
@@ -324,7 +362,7 @@
         <!-- DASHBOARD / İSTATİSTİK PANELİ -->
         <div
           id="dashboard-panel"
-          class="hidden grid grid-cols-3 gap-3 md:gap-4"
+          class="hidden grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4"
         >
           <div
             class="bg-white dark:bg-slate-800 p-3 md:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark transition-all"
@@ -362,7 +400,22 @@
             <p
               class="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider"
             >
-              Tamamlanan
+              Sevkiyatta
+            </p>
+            <p
+              id="stats-shipping"
+              class="text-2xl md:text-3xl font-extrabold text-blue-500 mt-1"
+            >
+              0
+            </p>
+          </div>
+          <div
+            class="bg-white dark:bg-slate-800 p-3 md:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark transition-all"
+          >
+            <p
+              class="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider"
+            >
+              Teslim Edilen
             </p>
             <p
               id="stats-tamamlandi"
@@ -413,10 +466,38 @@
             </div>
 
             <div>
-              <label
-                class="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2"
-                >Müşteri Adresi</label
-              >
+              <div class="flex justify-between items-center mb-2">
+                <label
+                  class="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider"
+                  >Müşteri Adresi</label
+                >
+                <button
+                  type="button"
+                  onclick="openAddressPickerMap()"
+                  class="text-xs bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2.5 py-1.5 rounded-lg font-bold hover:bg-indigo-100 dark:hover:bg-indigo-500/20 active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <svg
+                    class="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                    />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                  Haritadan Konum Seç
+                </button>
+              </div>
               <textarea
                 id="order-address"
                 rows="3"
@@ -603,6 +684,107 @@
           </div>
         </div>
 
+        <!-- SEVKİYAT LİSTESİ -->
+        <div id="page-shipping" class="hidden space-y-6">
+          <!-- SEARCH & FILTER BAR -->
+          <div
+            class="flex flex-col sm:flex-row gap-3 bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark"
+          >
+            <div class="relative flex-1">
+              <span
+                class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none"
+              >
+                <svg
+                  class="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </span>
+              <input
+                id="shipping-search-input"
+                type="text"
+                placeholder="Müşteri adresi veya ürün adı ile ara..."
+                class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm text-slate-800 dark:text-white"
+                oninput="renderShippingOrders()"
+              />
+            </div>
+            <div class="flex gap-2">
+              <select
+                id="shipping-urgency-filter"
+                class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                onchange="renderShippingOrders()"
+              >
+                <option value="All">Tüm Aciliyetler</option>
+                <option value="Çok Acil">🔴 Çok Acil</option>
+                <option value="Acil">🟠 Acil</option>
+                <option value="Normal">🔵 Normal</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- CANLI HARİTA PANELİ (Katlanabilir) -->
+          <div id="shipping-map-container" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-4 space-y-3">
+            <div class="flex justify-between items-center cursor-pointer select-none" onclick="toggleShippingMapCollapse()">
+              <h3 class="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>🗺️ Canlı Sevkiyat Haritası (Yoldaki Araçlar)</span>
+              </h3>
+              <button id="btn-toggle-map" class="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-3 py-1.5 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-1 active:scale-95 cursor-pointer">
+                <span id="toggle-map-text">Haritayı Göster</span>
+                <svg id="toggle-map-icon" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+            <div id="shipping-map-wrapper" class="hidden transition-all duration-300">
+              <div id="shipping-map" class="w-full h-80 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 z-10 mt-2"></div>
+            </div>
+          </div>
+
+          <!-- SEVKİYAT KARTLARI -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- YOLA ÇIKACAKLAR -->
+            <div class="space-y-4">
+              <h3
+                class="text-md font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"
+              >
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                <span>Yola Çıkacaklar</span>
+                <span
+                  id="count-yolacikacak"
+                  class="bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs px-2 py-0.5 rounded-full font-bold"
+                  >0</span
+                >
+              </h3>
+              <div id="list-yolacikacak" class="space-y-4"></div>
+            </div>
+
+            <!-- YOLDAKİLER -->
+            <div class="space-y-4">
+              <h3
+                class="text-md font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"
+              >
+                <span class="w-2.5 h-2.5 rounded-full bg-purple-500 animate-pulse"></span>
+                <span>Yoldakiler (Taşıma Süreci)</span>
+                <span
+                  id="count-yolda"
+                  class="bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-xs px-2 py-0.5 rounded-full font-bold"
+                  >0</span
+                >
+              </h3>
+              <div id="list-yolda" class="space-y-4"></div>
+            </div>
+          </div>
+        </div>
+
         <!-- GEÇMİŞ SİPARİŞLER -->
         <div id="page-history" class="hidden space-y-6">
           <div
@@ -688,7 +870,7 @@
                 type="text"
                 placeholder="Müşteri adresi veya ürün adı ile geçmişte ara..."
                 class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm text-slate-800 dark:text-white"
-                oninput="renderHistory()"
+                oninput="state.historyPage = 1; renderHistory()"
               />
             </div>
             <div class="flex gap-2 flex-wrap sm:flex-nowrap">
@@ -696,12 +878,12 @@
                 id="history-date-filter"
                 type="date"
                 class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                onchange="renderHistory()"
+                onchange="state.historyPage = 1; renderHistory()"
               />
               <select
                 id="history-urgency-filter"
                 class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                onchange="renderHistory()"
+                onchange="state.historyPage = 1; renderHistory()"
               >
                 <option value="All">Tüm Aciliyetler</option>
                 <option value="Çok Acil">🔴 Çok Acil</option>
@@ -712,6 +894,27 @@
           </div>
 
           <div id="list-gecmis" class="space-y-4"></div>
+
+          <!-- Geçmiş Sayfalama Kontrolleri -->
+          <div id="history-pagination" class="hidden flex justify-between items-center bg-white dark:bg-slate-800 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark">
+            <button
+              onclick="changeHistoryPage(-1)"
+              id="btn-history-prev"
+              class="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 border border-slate-200 dark:border-slate-700 rounded-xl transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ◀ Geri
+            </button>
+            <span id="history-page-info" class="text-xs font-extrabold text-slate-600 dark:text-slate-300">
+              Sayfa 1 / 1
+            </span>
+            <button
+              onclick="changeHistoryPage(1)"
+              id="btn-history-next"
+              class="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 border border-slate-200 dark:border-slate-700 rounded-xl transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              İleri ▶
+            </button>
+          </div>
         </div>
 
         <!-- YÖNETİCİ PANELİ -->
@@ -737,61 +940,143 @@
                 />
               </svg>
             </span>
-            <span>Yönetici Paneli (Personel Yönetimi)</span>
+            <span id="admin-title-text">Yönetici Paneli</span>
           </h2>
 
-          <div
-            class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-4 sm:p-6 space-y-5 transition-all"
-          >
-            <!-- Personel Ekleme Formu -->
-            <div class="space-y-2">
-              <label
-                class="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider"
-                >Yeni Personel Ekle</label
-              >
-              <div
-                class="flex gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 rounded-2xl"
-              >
-                <input
-                  id="admin-new-profile-input"
-                  type="text"
-                  placeholder="Personel adı..."
-                  class="flex-1 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:outline-none placeholder-slate-500 text-sm"
-                  onkeypress="if (event.key === 'Enter') addNewProfileAdmin();"
-                />
-                <button
-                  onclick="addNewProfileAdmin()"
-                  class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-xl font-semibold transition-all text-sm flex items-center gap-1 shrink-0"
+          <!-- Admin Alt Sekmeleri (Sub-navigation) -->
+          <div class="flex bg-slate-100 dark:bg-slate-900/80 p-1 rounded-2xl gap-1">
+            <button
+              id="btn-admin-tab-profiles"
+              onclick="switchAdminSubTab('profiles')"
+              class="flex-1 py-2.5 text-center text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+            >
+              👤 Personel Yönetimi
+            </button>
+            <button
+              id="btn-admin-tab-vehicles"
+              onclick="switchAdminSubTab('vehicles')"
+              class="flex-1 py-2.5 text-center text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+            >
+              🚚 Araç Yönetimi
+            </button>
+          </div>
+
+          <!-- PERSONEL YÖNETİMİ BÖLÜMÜ -->
+          <div id="admin-section-profiles" class="space-y-4">
+            <div
+              class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-4 sm:p-6 space-y-5 transition-all"
+            >
+              <!-- Personel Ekleme Formu -->
+              <div class="space-y-2">
+                <label
+                  class="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider"
+                  >Yeni Personel Ekle</label
                 >
-                  <svg
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                <div
+                  class="flex gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 rounded-2xl"
+                >
+                  <input
+                    id="admin-new-profile-input"
+                    type="text"
+                    placeholder="Personel adı..."
+                    class="flex-1 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:outline-none placeholder-slate-500 text-sm"
+                    onkeypress="if (event.key === 'Enter') addNewProfileAdmin();"
+                  />
+                  <button
+                    onclick="addNewProfileAdmin()"
+                    class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-xl font-semibold transition-all text-sm flex items-center gap-1 shrink-0 cursor-pointer"
                   >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
-                  Ekle
-                </button>
+                    <svg
+                      class="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    Ekle
+                  </button>
+                </div>
+              </div>
+
+              <!-- Personel Listesi -->
+              <div class="space-y-3">
+                <label
+                  class="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider"
+                  >Mevcut Personeller</label
+                >
+                <div
+                  id="admin-profile-list"
+                  class="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/20"
+                >
+                  <!-- Personeller JS tarafından buraya basılacak -->
+                </div>
               </div>
             </div>
+          </div>
 
-            <!-- Personel Listesi -->
-            <div class="space-y-3">
-              <label
-                class="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider"
-                >Mevcut Personeller</label
-              >
-              <div
-                id="admin-profile-list"
-                class="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/20"
-              >
-                <!-- Personeller JS tarafından buraya basılacak -->
+          <!-- ARAÇ YÖNETİMİ BÖLÜMÜ -->
+          <div id="admin-section-vehicles" class="space-y-4 hidden">
+            <div
+              class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-4 sm:p-6 space-y-5 transition-all"
+            >
+              <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-3">
+                🚚 Araç Yönetimi
+              </h3>
+              
+              <!-- Araç Ekleme Formu -->
+              <div class="space-y-3">
+                <label class="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  Yeni Araç Ekle
+                </label>
+                <div class="flex flex-col gap-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 rounded-2xl">
+                  <input
+                    id="admin-new-vehicle-plate"
+                    type="text"
+                    placeholder="Araç Plakası (Örn: 34ABC123)..."
+                    class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:outline-none placeholder-slate-500 text-sm uppercase"
+                  />
+                  <div class="flex items-center gap-3">
+                    <label class="flex-1 flex items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 bg-white dark:bg-slate-800 cursor-pointer text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all select-none">
+                      <span>📷 Fotoğraf Yükle</span>
+                      <input
+                        id="admin-new-vehicle-photo"
+                        type="file"
+                        accept="image/*"
+                        class="hidden"
+                        onchange="handleVehiclePhotoSelect(event)"
+                      />
+                    </label>
+                    <div id="vehicle-photo-preview" class="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 hidden">
+                      <img id="img-preview" class="w-full h-full object-cover" />
+                    </div>
+                  </div>
+                  <button
+                    onclick="addNewVehicleAdmin()"
+                    class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Aracı Kaydet
+                  </button>
+                </div>
+              </div>
+
+              <!-- Araç Listesi -->
+              <div class="space-y-3">
+                <label class="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  Kayıtlı Araçlar
+                </label>
+                <div
+                  id="admin-vehicle-list"
+                  class="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/20"
+                >
+                  <!-- Araçlar JS tarafından buraya basılacak -->
+                </div>
               </div>
             </div>
           </div>
@@ -1100,6 +1385,181 @@
         </div>
       </div>
     </div>
+    <!-- SEVKİYAT BAŞLATMA MODALI -->
+    <div
+      id="shipping-modal"
+      class="hidden fixed inset-0 z-50 modal-overlay bg-slate-900/60 dark:bg-black/80 flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md flex flex-col overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-700 animate-slide-in"
+      >
+        <!-- Header -->
+        <div
+          class="bg-indigo-600 dark:bg-indigo-950 text-white px-5 py-4 flex justify-between items-center"
+        >
+          <div>
+            <p class="text-[10px] text-indigo-200 uppercase tracking-wider font-semibold">Sevkiyat İşlemleri</p>
+            <p class="font-bold text-base mt-0.5">Yola Çıkış Detayları</p>
+          </div>
+          <button
+            onclick="closeShippingModal()"
+            class="bg-white/10 text-white/80 hover:bg-white/20 hover:text-white rounded-xl p-2 transition-all active:scale-95"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Form İçeriği -->
+        <div class="p-5 space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Araç Seçimi / Teslimat Türü</label>
+            <input type="hidden" id="shipping-vehicle-select" value="" />
+            <button
+              type="button"
+              onclick="openVehicleSelectionModal()"
+              class="w-full flex items-center justify-between border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-4 py-3 text-slate-800 dark:text-white transition-all text-sm font-bold cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            >
+              <span id="selected-vehicle-label">🚙 Araç veya Teslimat Yöntemi Seçin</span>
+              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+          <!-- Seçilen Araç Önizleme Kartı -->
+          <div id="selected-vehicle-preview" class="hidden p-3 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center gap-3 animate-slide-in">
+            <img id="preview-vehicle-img" class="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-700" />
+            <div>
+              <p id="preview-vehicle-plate" class="text-sm font-bold text-slate-800 dark:text-white uppercase"></p>
+              <p class="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold uppercase">Seçilen Sevkiyat Aracı</p>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Taşınan Malzemeler</label>
+            <textarea
+              id="shipping-materials"
+              rows="3"
+              placeholder="Araçtaki malzemeler..."
+              class="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-800 dark:text-white transition-all text-sm resize-none"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/30 flex gap-3">
+          <button
+            onclick="closeShippingModal()"
+            class="flex-1 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 py-3 rounded-xl font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all text-sm"
+          >
+            İptal
+          </button>
+          <button
+            id="btn-confirm-shipping"
+            onclick="confirmShipping()"
+            class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold hover:shadow-indigo-500/20 hover:shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 text-sm cursor-pointer"
+          >
+            <span id="btn-confirm-shipping-text">🚀 Yola Çıkar</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ARAÇ SEÇİM MODALİ -->
+    <div
+      id="vehicle-selection-modal"
+      class="hidden fixed inset-0 z-[60] bg-slate-900/60 dark:bg-black/80 flex items-center justify-center p-4 modal-overlay"
+    >
+      <div
+        class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md flex flex-col overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-700 animate-slide-in"
+      >
+        <!-- Header -->
+        <div class="bg-indigo-600 dark:bg-indigo-950 text-white px-5 py-4 flex justify-between items-center">
+          <div>
+            <p class="text-[10px] text-indigo-200 uppercase tracking-wider font-semibold">Sevkiyat İşlemleri</p>
+            <p class="font-bold text-base mt-0.5">Araç / Teslimat Türü Seçin</p>
+          </div>
+          <button
+            onclick="closeVehicleSelectionModal()"
+            class="bg-white/10 text-white/80 hover:bg-white/20 hover:text-white rounded-xl p-2 transition-all active:scale-95"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <!-- Grid İçerik -->
+        <div class="p-5 overflow-y-auto max-h-[400px]">
+          <div id="vehicle-selection-grid" class="grid grid-cols-2 gap-3">
+            <!-- Araç Kartları Buraya Dinamik Olarak Eklenecek -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HARİTADAN ADRES/KONUM SEÇME MODALI -->
+    <div
+      id="address-picker-modal"
+      class="hidden fixed inset-0 z-50 modal-overlay bg-slate-900/60 dark:bg-black/80 flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg flex flex-col overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-700 animate-slide-in"
+      >
+        <!-- Header -->
+        <div class="bg-indigo-600 dark:bg-indigo-950 text-white px-5 py-4 flex justify-between items-center">
+          <div>
+            <p class="text-[10px] text-indigo-200 uppercase tracking-wider font-semibold">Konum Seçici</p>
+            <p class="font-bold text-base mt-0.5">Teslimat Noktasını İşaretleyin</p>
+          </div>
+          <button
+            onclick="closeAddressPickerMap()"
+            class="bg-white/10 text-white/80 hover:bg-white/20 hover:text-white rounded-xl p-2 transition-all active:scale-95"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Harita ve Arama alanı -->
+        <div class="p-4 space-y-3">
+          <div class="flex gap-2">
+            <input
+              id="address-search-input"
+              type="text"
+              placeholder="Adres veya yer adı ara (örn: Kadıköy)..."
+              class="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none"
+              onkeypress="if(event.key === 'Enter') searchAddressOnMap();"
+            />
+            <button onclick="searchAddressOnMap()" class="px-3 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-500 active:scale-95 transition-all cursor-pointer">
+              Ara
+            </button>
+          </div>
+          <div id="picker-map" class="w-full h-72 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 z-10"></div>
+          <p class="text-[10px] text-slate-400 dark:text-slate-500 font-semibold">
+            💡 Haritada istediğiniz yere tıklayarak kırmızı teslimat pinini yerleştirebilirsiniz.
+          </p>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/30 flex gap-3">
+          <button
+            onclick="closeAddressPickerMap()"
+            class="flex-1 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 py-2.5 rounded-xl font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all text-xs cursor-pointer"
+          >
+            İptal
+          </button>
+          <button
+            onclick="confirmAddressPickerLocation()"
+            class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl font-bold hover:shadow-indigo-500/20 active:scale-95 transition-all text-xs cursor-pointer"
+          >
+            Konumu Seç ve Kaydet
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ONAY MODALI (CUSTOM CONFIRM) -->
     <div
       id="confirm-modal"
@@ -1157,6 +1617,8 @@
         </div>
       </div>
     </div>
+
+
 
     <!-- ADMİN ŞİFRE MODALI -->
     <div
