@@ -6,6 +6,16 @@ const ATTENDANCE_SECRET_SALT = "AYG_ATTENDANCE_SECRET_2026";
 let html5QrcodeScanner = null;
 let activeShiftSettings = [];
 
+// Filtreleme ve sayfalama durumları
+let attendanceCurrentPage = 1;
+const attendanceItemsPerPage = 10;
+let attendanceFilters = {
+  profile: 'All',
+  action: 'All',
+  status: 'All',
+  date: ''
+};
+
 // Bugünün tarihini YYYY-MM-DD formatında al
 function getFormattedToday() {
   const d = new Date();
@@ -205,65 +215,203 @@ async function sendCustomNotification() {
   }
 }
 
-// Giriş/Çıkış Raporlarını Yükle
+// Personel filtresi dropdown'ını doldur
+function populateAttendanceFilterProfiles() {
+  const select = document.getElementById("attendance-filter-profile");
+  if (!select) return;
+
+  // Seçili değeri koruyarak temizle (sadece Tümü kalsın)
+  const currentVal = select.value || 'All';
+  select.innerHTML = '<option value="All">Tümü</option>';
+
+  const otherProfiles = state.profiles.filter(p => p !== "Admin");
+  otherProfiles.forEach(p => {
+    const opt = document.createElement("option");
+    opt.value = p;
+    opt.textContent = p;
+    select.appendChild(opt);
+  });
+
+  select.value = currentVal;
+}
+
+// Filtreleri uygula
+function applyAttendanceFilters() {
+  attendanceFilters.profile = document.getElementById("attendance-filter-profile")?.value || 'All';
+  attendanceFilters.action = document.getElementById("attendance-filter-action")?.value || 'All';
+  attendanceFilters.status = document.getElementById("attendance-filter-status")?.value || 'All';
+  attendanceFilters.date = document.getElementById("attendance-filter-date")?.value || '';
+
+  attendanceCurrentPage = 1; // Filtre değişince sayfa 1'e döner
+  loadAttendanceLogs();
+}
+
+// Sayfa değiştir
+function changeAttendancePage(direction) {
+  attendanceCurrentPage += direction;
+  loadAttendanceLogs();
+}
+
+// Giriş/Çıkış Raporlarını Filtrelere ve Sayfalamaya Göre Yükle
 async function loadAttendanceLogs() {
   if (!supabaseClient) return;
 
-  const listContainer = document.getElementById("attendance-log-list");
-  if (!listContainer) return;
+  // Personel filtresini ilk kez veya her yüklemede doldur
+  populateAttendanceFilterProfiles();
 
-  listContainer.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-400">Yükleniyor...</td></tr>';
+  const timelineContainer = document.getElementById("attendance-timeline-list");
+  const paginationContainer = document.getElementById("attendance-pagination");
+  const pageInfo = document.getElementById("attendance-page-info");
+  const btnPrev = document.getElementById("btn-attendance-prev");
+  const btnNext = document.getElementById("btn-attendance-next");
+
+  if (!timelineContainer) return;
+
+  timelineContainer.innerHTML = '<div class="text-center text-xs text-slate-400 py-6">Yükleniyor...</div>';
 
   try {
-    const { data, error } = await supabaseClient
+    // 1. Sorguyu oluştur
+    let query = supabaseClient
       .from("attendance")
-      .select("*")
+      .select("*", { count: "exact" });
+
+    // 2. Filtreleri uygula
+    if (attendanceFilters.profile !== "All") {
+      query = query.eq("profile_name", attendanceFilters.profile);
+    }
+    if (attendanceFilters.action !== "All") {
+      query = query.eq("action_type", attendanceFilters.action);
+    }
+    if (attendanceFilters.status !== "All") {
+      query = query.eq("late_status", attendanceFilters.status);
+    }
+    if (attendanceFilters.date) {
+      const dateStart = new Date(attendanceFilters.date);
+      dateStart.setHours(0, 0, 0, 0);
+      const dateEnd = new Date(attendanceFilters.date);
+      dateEnd.setHours(23, 59, 59, 999);
+
+      query = query
+        .gte("created_at", dateStart.toISOString())
+        .lte("created_at", dateEnd.toISOString());
+    }
+
+    // 3. Sıralama ve Sayfalama (Range) ekle
+    const from = (attendanceCurrentPage - 1) * attendanceItemsPerPage;
+    const to = from + attendanceItemsPerPage - 1;
+
+    const { data, error, count } = await query
       .order("created_at", { ascending: false })
-      .limit(100);
+      .range(from, to);
 
     if (error) throw error;
 
+    // 4. Günün Metriklerini (İstatistiklerini) güncelle
+    await loadTodayGeneralStats();
+
+    // 5. Kayıt yoksa ekrana bas
     if (!data || data.length === 0) {
-      listContainer.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-400">Kayıt bulunamadı.</td></tr>';
+      timelineContainer.innerHTML = '<div class="text-center text-xs text-slate-400 py-6">Kayıt bulunamadı.</div>';
+      if (paginationContainer) paginationContainer.classList.add("hidden");
       return;
     }
 
-    listContainer.innerHTML = data.map(log => {
+    // 6. Zaman tüneli loglarını render et
+    timelineContainer.innerHTML = data.map(log => {
       const date = new Date(log.created_at);
-      const timeStr = date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const dateStr = date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const timeStr = date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+      const dateStr = date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' });
+      
+      const isGiris = log.action_type === 'Giriş';
+      const initial = log.profile_name.charAt(0).toUpperCase();
 
-      // Eylem Rozeti
-      const actionBadge = log.action_type === 'Giriş' 
-        ? `<span class="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-md text-[10px] font-bold">Giriş</span>`
-        : `<span class="px-2 py-0.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-md text-[10px] font-bold">Çıkış</span>`;
-
-      // Durum Rozeti
-      let statusClass = "text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800";
-      if (log.late_status === 'Zamanında') statusClass = "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40";
-      else if (log.late_status === 'Geç Kaldı') statusClass = "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40";
-      else if (log.late_status === 'Erken Çıktı') statusClass = "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40";
-      else if (log.late_status === 'Fazla Mesai') statusClass = "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40";
-
-      const statusBadge = `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${statusClass}">${log.late_status || 'Belirsiz'}</span>`;
+      let statusColor = "text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800";
+      if (log.late_status === 'Zamanında') statusColor = "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900/20";
+      else if (log.late_status === 'Geç Kaldı') statusColor = "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-100 dark:border-amber-900/20";
+      else if (log.late_status === 'Erken Çıktı') statusColor = "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 border-rose-100 dark:border-rose-900/20";
+      else if (log.late_status === 'Fazla Mesai') statusColor = "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 border-indigo-100 dark:border-indigo-900/20";
 
       return `
-        <tr class="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-900/10 transition-colors">
-          <td class="py-2.5 font-semibold text-slate-800 dark:text-slate-200">${log.profile_name}</td>
-          <td class="py-2.5">${actionBadge}</td>
-          <td class="py-2.5">${statusBadge}</td>
-          <td class="py-2.5 text-slate-500 dark:text-slate-400">${dateStr} - ${timeStr}</td>
-          <td class="py-2.5 text-right">
-            <button onclick="deleteAttendanceLog('${log.id}')" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all active:scale-95 cursor-pointer">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-            </button>
-          </td>
-        </tr>
+        <div class="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-900/20 border border-slate-100 dark:border-slate-800/60 rounded-2xl hover:shadow-sm transition-all duration-200 animate-fade-in">
+          <div class="w-9 h-9 rounded-full ${isGiris ? 'bg-emerald-600' : 'bg-rose-600'} text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
+            ${initial}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between gap-2">
+              <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">${log.profile_name}</h4>
+              <span class="text-[10px] text-slate-400 font-semibold shrink-0">${dateStr} - ${timeStr}</span>
+            </div>
+            <div class="flex items-center justify-between mt-1.5 gap-2">
+              <div class="flex items-center gap-1.5">
+                <span class="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase ${isGiris ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}">
+                  ${log.action_type}
+                </span>
+                <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold border ${statusColor}">
+                  ${log.late_status || 'Belirsiz'}
+                </span>
+              </div>
+              <button onclick="deleteAttendanceLog('${log.id}')" class="text-slate-400 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400 p-1 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-lg transition-all active:scale-95 cursor-pointer" title="Sil">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
       `;
     }).join('');
+
+    // 7. Sayfalama Kontrollerini Yönet
+    if (paginationContainer) {
+      paginationContainer.classList.remove("hidden");
+      const totalPages = Math.ceil(count / attendanceItemsPerPage) || 1;
+      
+      if (pageInfo) pageInfo.textContent = `Sayfa ${attendanceCurrentPage} / ${totalPages}`;
+      if (btnPrev) btnPrev.disabled = attendanceCurrentPage <= 1;
+      if (btnNext) btnNext.disabled = attendanceCurrentPage >= totalPages;
+    }
+
   } catch (e) {
     console.error("Raporlar yüklenemedi:", e);
-    listContainer.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-rose-500 font-semibold">Rapor yüklenirken hata.</td></tr>';
+    timelineContainer.innerHTML = '<div class="text-center text-xs text-rose-500 font-semibold py-6">Rapor yüklenirken hata oluştu.</div>';
+  }
+}
+
+// Bugünün İstatistiklerini Hesapla ve Arayüze Bas (Genel Metrikler)
+async function loadTodayGeneralStats() {
+  if (!supabaseClient) return;
+
+  const totalSpan = document.getElementById("stats-attendance-total");
+  const lateSpan = document.getElementById("stats-attendance-late");
+  
+  if (!totalSpan && !lateSpan) return;
+
+  try {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const { data, error } = await supabaseClient
+      .from("attendance")
+      .select("profile_name, action_type, late_status")
+      .gte("created_at", startOfToday.toISOString());
+
+    if (error) throw error;
+
+    const uniqueAttendees = new Set(
+      data
+        .filter(log => log.action_type === 'Giriş')
+        .map(log => log.profile_name)
+    );
+
+    const uniqueLateAttendees = new Set(
+      data
+        .filter(log => log.action_type === 'Giriş' && log.late_status === 'Geç Kaldı')
+        .map(log => log.profile_name)
+    );
+
+    if (totalSpan) totalSpan.textContent = uniqueAttendees.size;
+    if (lateSpan) lateSpan.textContent = uniqueLateAttendees.size;
+
+  } catch (e) {
+    console.error("Genel metrikler yüklenemedi:", e);
   }
 }
 
@@ -287,6 +435,21 @@ async function deleteAttendanceLog(logId) {
   } catch (e) {
     console.error("Kayıt silinemedi:", e);
     showToast("Kayıt silinirken hata oluştu.", "error");
+  }
+}
+
+// QR Kod alanını aç/kapat (collapsible)
+function toggleAdminQRCollapse() {
+  const wrapper = document.getElementById("admin-qr-collapse-wrapper");
+  const btn = document.getElementById("btn-toggle-qr-collapse");
+  if (!wrapper || !btn) return;
+
+  if (wrapper.classList.contains("hidden")) {
+    wrapper.classList.remove("hidden");
+    btn.textContent = "Kodu Gizle";
+  } else {
+    wrapper.classList.add("hidden");
+    btn.textContent = "Kodu Göster";
   }
 }
 
@@ -438,7 +601,7 @@ async function calculateLateStatus(actionType) {
     }
 
     const nowTimeStr = today.toTimeString().substring(0, 8); // 'HH:MM:SS'
-    
+
     if (actionType === 'Giriş') {
       // Giriş saati kontrolü
       const limitStart = shift.start_time; // '08:30:00'

@@ -1013,55 +1013,85 @@
         <!-- YÖNETİCİ PANELİ -->
         <div
           id="page-admin"
-          class="hidden space-y-6 max-w-6xl mx-auto animate-slide-in w-full"
+          class="hidden max-w-6xl mx-auto animate-slide-in w-full flex flex-col md:flex-row gap-6 items-start"
         >
-          <h2
-            class="text-xl font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2"
-          >
-            <span class="p-1.5 bg-indigo-500/10 text-indigo-500 rounded-lg">
-              <svg
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
-                />
-              </svg>
-            </span>
-            <span id="admin-title-text">Yönetici Paneli</span>
-          </h2>
+          <!-- Sol Menü Bar (Sidebar) -->
+          <div class="w-full md:w-64 shrink-0 flex flex-col gap-3">
+            <h2
+              class="text-xl font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2"
+            >
+              <span class="p-1.5 bg-indigo-500/10 text-indigo-500 rounded-lg">
+                <svg
+                  class="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+                  />
+                </svg>
+              </span>
+              <span id="admin-title-text" class="text-base sm:text-lg">Yönetici Paneli</span>
+            </h2>
 
-          <!-- Admin Alt Sekmeleri (Sub-navigation) -->
-          <div
-            class="flex bg-slate-100 dark:bg-slate-900/80 p-1 rounded-2xl gap-1"
-          >
-            <button
-              id="btn-admin-tab-profiles"
-              onclick="switchAdminSubTab('profiles')"
-              class="flex-1 py-2.5 text-center text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+            <div
+              class="flex md:flex-col bg-white dark:bg-slate-800 p-2 rounded-2xl gap-1 border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark overflow-x-auto no-scrollbar"
             >
-              👤 Personel Yönetimi
-            </button>
-            <button
-              id="btn-admin-tab-vehicles"
-              onclick="switchAdminSubTab('vehicles')"
-              class="flex-1 py-2.5 text-center text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
-            >
-              🚚 Araç Yönetimi
-            </button>
-            <button
-              id="btn-admin-tab-attendance"
-              onclick="switchAdminSubTab('attendance')"
-              class="flex-1 py-2.5 text-center text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
-            >
-              📅 Vardiya & Giriş-Çıkış
-            </button>
+              <button
+                id="btn-admin-tab-profiles"
+                onclick="switchAdminSubTab('profiles')"
+                class="flex-1 md:flex-none py-2.5 px-4 text-left text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer flex items-center gap-2 bg-indigo-600 text-white shadow-sm"
+              >
+                <span>👤</span> <span class="whitespace-nowrap">Personel Yönetimi</span>
+              </button>
+              <button
+                id="btn-admin-tab-vehicles"
+                onclick="switchAdminSubTab('vehicles')"
+                class="flex-1 md:flex-none py-2.5 px-4 text-left text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+              >
+                <span>🚚</span> <span class="whitespace-nowrap">Araç Yönetimi</span>
+              </button>
+              
+              <!-- Ayırıcı Çizgi -->
+              <div class="hidden md:block border-t border-slate-100 dark:border-slate-800/80 my-1"></div>
+
+              <button
+                id="btn-admin-tab-attendance-qr"
+                onclick="switchAdminSubTab('attendance-qr')"
+                class="flex-1 md:flex-none py-2.5 px-4 text-left text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+              >
+                <span>📱</span> <span class="whitespace-nowrap">Giriş/Çıkış QR Kodu</span>
+              </button>
+              <button
+                id="btn-admin-tab-attendance-shifts"
+                onclick="switchAdminSubTab('attendance-shifts')"
+                class="flex-1 md:flex-none py-2.5 px-4 text-left text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+              >
+                <span>⚙️</span> <span class="whitespace-nowrap">Çalışma Saatleri</span>
+              </button>
+              <button
+                id="btn-admin-tab-attendance-notif"
+                onclick="switchAdminSubTab('attendance-notif')"
+                class="flex-1 md:flex-none py-2.5 px-4 text-left text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+              >
+                <span>📣</span> <span class="whitespace-nowrap">Personel Uyarı / Mesaj</span>
+              </button>
+              <button
+                id="btn-admin-tab-attendance-logs"
+                onclick="switchAdminSubTab('attendance-logs')"
+                class="flex-1 md:flex-none py-2.5 px-4 text-left text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+              >
+                <span>📅</span> <span class="whitespace-nowrap">Son Aktiviteler</span>
+              </button>
+            </div>
           </div>
+
+          <!-- Sağ Panel İçerik Alanı -->
+          <div class="flex-1 w-full space-y-6">
 
           <!-- PERSONEL YÖNETİMİ BÖLÜMÜ -->
           <div
@@ -1210,168 +1240,222 @@
             </div>
           </div>
 
-          <!-- VARDİYA & GİRİŞ-ÇIKIŞ YÖNETİMİ BÖLÜMÜ -->
-          <div
-            id="admin-section-attendance"
-            class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start hidden"
-          >
-            <!-- Sol Kolon: QR Kod ve Vardiya Ayarları -->
-            <div class="space-y-6 w-full">
-              <!-- DİNAMİK QR KOD EKRANI -->
-              <div
-                class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-4 sm:p-6 space-y-4 transition-all"
-              >
-                <h3
-                  class="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-3"
-                >
-                  📱 Bugünün Giriş/Çıkış QR Kodu
+          <!-- 📱 GİRİŞ/ÇIKIS QR KODU BÖLÜMÜ -->
+          <div id="admin-section-attendance-qr" class="hidden w-full space-y-6">
+            <!-- QR KOD KONTROL KARTI -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-4 sm:p-6 space-y-4 transition-all">
+              <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  📱 Giriş/Çıkış QR Kodu
                 </h3>
-                <p
-                  class="text-xs text-slate-400 dark:text-slate-500 font-medium"
-                >
-                  Personellerin işe giriş ve çıkış yapabilmesi için aşağıdaki QR
-                  kodu taratmaları gerekmektedir. Bu kod her gün otomatik olarak
-                  güncellenir.
-                </p>
-                <div
-                  class="flex flex-col items-center justify-center py-4 bg-slate-50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/80"
-                >
-                  <div
-                    id="admin-qr-container"
-                    class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center w-48 h-48"
+                <div class="flex gap-2">
+                  <a
+                    href="qr.html"
+                    target="_blank"
+                    class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1"
+                    title="Terminal Ekranını Yeni Sekmede Aç"
                   >
-                    <!-- QR Kod Buraya JS İle Oluşturulacak -->
+                    🔗 Terminal Aç
+                  </a>
+                  <button
+                    onclick="toggleAdminQRCollapse()"
+                    id="btn-toggle-qr-collapse"
+                    class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-bold transition-all"
+                  >
+                    Kodu Göster
+                  </button>
+                </div>
+              </div>
+
+              <!-- Gizlenebilir QR Alanı -->
+              <div id="admin-qr-collapse-wrapper" class="hidden transition-all duration-300">
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 font-medium text-center mb-3">
+                  Aşağıdaki kodu depodaki personellere taratabilirsiniz (Her gün değişir).
+                </p>
+                <div class="flex flex-col items-center justify-center py-3 bg-slate-50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/80">
+                  <div id="admin-qr-container" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center w-40 h-40">
+                    <!-- QR Kod Buraya Çizilecek -->
                   </div>
-                  <div class="mt-3 text-center">
-                    <span
-                      id="admin-qr-date"
-                      class="px-3 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-bold"
-                    >
+                  <div class="mt-2 text-center">
+                    <span id="admin-qr-date" class="px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-extrabold">
                       Yükleniyor...
                     </span>
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
 
-              <!-- VARDİYA SAAT AYARLARI -->
-              <div
-                class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-4 sm:p-6 space-y-4 transition-all"
+          <!-- ⚙️ ÇALIŞMA SAATLERİ AYARI BÖLÜMÜ -->
+          <div id="admin-section-attendance-shifts" class="hidden w-full space-y-6">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-4 sm:p-6 space-y-4 transition-all">
+              <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-3">
+                ⚙️ Çalışma Saatleri Ayarı
+              </h3>
+              <div id="shift-settings-container" class="space-y-2">
+                <div class="text-center text-xs text-slate-400 py-2">Yükleniyor...</div>
+              </div>
+              <button
+                onclick="saveShiftSettings()"
+                class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <h3
-                  class="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-3"
+                💾 Ayarları Kaydet
+              </button>
+            </div>
+          </div>
+
+          <!-- 📣 PERSONEL UYARI / MESAJ GÖNDER BÖLÜMÜ -->
+          <div id="admin-section-attendance-notif" class="hidden w-full space-y-6">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-4 sm:p-6 space-y-4 transition-all">
+              <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-3">
+                📣 Personel Uyarı / Mesaj Gönder
+              </h3>
+              <div class="flex flex-col sm:flex-row gap-2">
+                <select
+                  id="notif-target-select"
+                  class="w-full sm:w-1/3 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none"
                 >
-                  ⚙️ Haftalık Çalışma Saatleri Ayarı
-                </h3>
-                <div id="shift-settings-container" class="space-y-3">
-                  <!-- Günlük ayarlar JS ile buraya basılacak -->
-                  <div class="text-center text-xs text-slate-400 py-2">
-                    Yükleniyor...
-                  </div>
+                  <option value="Tümü">Herkes (Tümü)</option>
+                </select>
+                <div class="flex-1 flex gap-2">
+                  <input
+                    id="notif-message-input"
+                    type="text"
+                    placeholder="Uyarı veya duyuru mesajı..."
+                    class="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none"
+                  />
+                  <button
+                    onclick="sendCustomNotification()"
+                    class="px-4 py-2 bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 rounded-xl font-bold transition-all text-xs flex items-center justify-center gap-1 cursor-pointer shrink-0"
+                  >
+                    Gönder
+                  </button>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 📅 SON AKTİVİTELER (ZAMAN TÜNELİ & METRİKLER) BÖLÜMÜ -->
+          <div id="admin-section-attendance-logs" class="hidden w-full space-y-6">
+            <!-- ÜST ÖZET METRİK KARTLARI -->
+            <div class="grid grid-cols-2 gap-4 animate-fade-in">
+              <!-- Kart 1: Bugün Giriş Yapanlar -->
+              <div class="bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 dark:from-emerald-500/5 dark:to-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                <div>
+                  <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Bugün Gelenler</p>
+                  <p id="stats-attendance-total" class="text-2xl sm:text-3xl font-black text-slate-800 dark:text-white mt-1">0</p>
+                </div>
+                <div class="p-3 bg-emerald-500 text-white rounded-xl shadow-md shadow-emerald-500/20">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+              </div>
+              <!-- Kart 2: Bugün Geç Kalanlar -->
+              <div class="bg-gradient-to-br from-amber-500/10 to-amber-600/5 dark:from-amber-500/5 dark:to-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                <div>
+                  <p class="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Geç Kalanlar</p>
+                  <p id="stats-attendance-late" class="text-2xl sm:text-3xl font-black text-slate-800 dark:text-white mt-1">0</p>
+                </div>
+                <div class="p-3 bg-amber-500 text-white rounded-xl shadow-md shadow-amber-500/20">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- ZAMAN TÜNELİ KARTI -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-4 sm:p-6 space-y-4 transition-all">
+              <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  📅 Son Aktiviteler
+                </h3>
                 <button
-                  onclick="saveShiftSettings()"
-                  class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                  onclick="loadAttendanceLogs()"
+                  class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-400 active:scale-95 transition-all cursor-pointer"
+                  title="Yenile"
                 >
-                  💾 Vardiya Saatlerini Kaydet
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18"/></svg>
+                </button>
+              </div>
+
+              <!-- Filtreleme Alanları -->
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-2xl border border-slate-100 dark:border-slate-800/80">
+                <!-- Personel Seçimi -->
+                <div class="flex flex-col gap-1">
+                  <label class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Personel</label>
+                  <select
+                    id="attendance-filter-profile"
+                    onchange="applyAttendanceFilters()"
+                    class="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none"
+                  >
+                    <option value="All">Tümü</option>
+                  </select>
+                </div>
+                <!-- İşlem Türü -->
+                <div class="flex flex-col gap-1">
+                  <label class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">İşlem</label>
+                  <select
+                    id="attendance-filter-action"
+                    onchange="applyAttendanceFilters()"
+                    class="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none"
+                  >
+                    <option value="All">Tümü</option>
+                    <option value="Giriş">Giriş</option>
+                    <option value="Çıkış">Çıkış</option>
+                  </select>
+                </div>
+                <!-- Durum -->
+                <div class="flex flex-col gap-1">
+                  <label class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Durum</label>
+                  <select
+                    id="attendance-filter-status"
+                    onchange="applyAttendanceFilters()"
+                    class="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none"
+                  >
+                    <option value="All">Tümü</option>
+                    <option value="Zamanında">Zamanında</option>
+                    <option value="Geç Kaldı">Geç Kaldı</option>
+                    <option value="Erken Çıktı">Erken Çıktı</option>
+                    <option value="Fazla Mesai">Fazla Mesai</option>
+                  </select>
+                </div>
+                <!-- Tarih -->
+                <div class="flex flex-col gap-1">
+                  <label class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Tarih</label>
+                  <input
+                    type="date"
+                    id="attendance-filter-date"
+                    onchange="applyAttendanceFilters()"
+                    class="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <!-- Zaman Tüneli Akış Alanı -->
+              <div id="attendance-timeline-list" class="space-y-3.5 max-h-[380px] overflow-y-auto pr-1">
+                <div class="text-center text-xs text-slate-400 py-6">Kayıt bulunamadı.</div>
+              </div>
+
+              <!-- Sayfalama (Pagination) Barı -->
+              <div id="attendance-pagination" class="hidden flex justify-between items-center pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                <button
+                  onclick="changeAttendancePage(-1)"
+                  id="btn-attendance-prev"
+                  class="px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 border border-slate-200 dark:border-slate-700 rounded-xl transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ◀ Geri
+                </button>
+                <span id="attendance-page-info" class="text-[10px] font-extrabold text-slate-600 dark:text-slate-300">
+                  Sayfa 1 / 1
+                </span>
+                <button
+                  onclick="changeAttendancePage(1)"
+                  id="btn-attendance-next"
+                  class="px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 border border-slate-200 dark:border-slate-700 rounded-xl transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  İleri ▶
                 </button>
               </div>
             </div>
-
-            <!-- Sağ Kolon: Bildirim Gönderme ve Giriş-Çıkış Raporları -->
-            <div class="space-y-6 w-full">
-              <!-- UYARI VE BİLDİRİM GÖNDERME -->
-              <div
-                class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-4 sm:p-6 space-y-4 transition-all"
-              >
-                <h3
-                  class="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-3"
-                >
-                  📣 Personel Uyarı / Mesaj Gönder
-                </h3>
-                <div class="space-y-3">
-                  <div class="flex gap-2">
-                    <select
-                      id="notif-target-select"
-                      class="w-1/3 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none"
-                    >
-                      <option value="Tümü">Herkes (Tümü)</option>
-                      <!-- Personeller dinamik eklenecek -->
-                    </select>
-                    <input
-                      id="notif-message-input"
-                      type="text"
-                      placeholder="Göndermek istediğiniz uyarı veya duyuru..."
-                      class="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none"
-                    />
-                  </div>
-                  <button
-                    onclick="sendCustomNotification()"
-                    class="w-full py-2 bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 rounded-xl font-bold transition-all text-xs flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    ✉️ Mesaj Gönder
-                  </button>
-                </div>
-              </div>
-
-              <!-- GİRİŞ-ÇIKIŞ RAPORU -->
-              <div
-                class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-4 sm:p-6 space-y-4 transition-all animate-fade-in"
-              >
-                <div
-                  class="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3"
-                >
-                  <h3
-                    class="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5"
-                  >
-                    📅 Giriş/Çıkış Raporları
-                  </h3>
-                  <button
-                    onclick="loadAttendanceLogs()"
-                    class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-400 active:scale-95 transition-all cursor-pointer"
-                    title="Yenile"
-                  >
-                    <svg
-                      class="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18"
-                      />
-                    </svg>
-                  </button>
-                </div>
-                <div class="overflow-x-auto">
-                  <table class="w-full text-left border-collapse">
-                    <thead>
-                      <tr
-                        class="border-b border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 font-bold uppercase tracking-wider"
-                      >
-                        <th class="py-2.5">Personel</th>
-                        <th class="py-2.5">İşlem</th>
-                        <th class="py-2.5">Durum</th>
-                        <th class="py-2.5">Tarih / Saat</th>
-                        <th class="py-2.5 text-right">İşlem</th>
-                      </tr>
-                    </thead>
-                    <tbody
-                      id="attendance-log-list"
-                      class="divide-y divide-slate-100 dark:divide-slate-800 text-xs"
-                    >
-                      <tr>
-                        <td colspan="5" class="py-4 text-center text-slate-400">
-                          Kayıt bulunamadı.
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+          </div>
           </div>
         </div>
       </main>
