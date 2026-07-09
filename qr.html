@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="tr" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AYG Giriş-Çıkış Terminali</title>
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
+    <!-- QR Kod Oluşturma Kütüphanesi -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+      body {
+        background: radial-gradient(circle at top right, #1e1b4b 0%, #0f172a 100%);
+      }
+      .glass-card {
+        background: rgba(30, 41, 59, 0.4);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+    </style>
+  </head>
+  <body class="h-full text-slate-100 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+    <!-- ANA PANEL -->
+    <div class="w-full max-w-lg glass-card rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-800 text-center space-y-6 sm:space-y-8 relative overflow-hidden">
+      <!-- Arka Plan Dekoratif Işıklar -->
+      <div class="absolute -top-24 -left-24 w-48 h-48 bg-indigo-600/10 rounded-full blur-3xl"></div>
+      <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-emerald-600/10 rounded-full blur-3xl"></div>
+
+      <!-- BAŞLIK -->
+      <div class="space-y-2">
+        <div class="inline-flex p-3 bg-indigo-500/10 text-indigo-400 rounded-2xl mb-2">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v1m0 11v2m8-8h-1m-15 0H3m16 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 9h6v6H9z" />
+          </svg>
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-emerald-400">
+          AYG Giriş-Çıkış Paneli
+        </h1>
+        <p class="text-xs sm:text-sm text-slate-400 max-w-sm mx-auto">
+          İşe başlarken veya işi bitirirken mobil uygulamanızdan sağ üstteki butona basarak bu QR kodu taratın.
+        </p>
+      </div>
+
+      <!-- SAAT VE TARİH -->
+      <div class="space-y-1">
+        <div id="live-time" class="text-4xl sm:text-5xl font-black tracking-widest text-white drop-shadow">
+          00:00:00
+        </div>
+        <div id="live-date" class="text-xs sm:text-sm font-semibold tracking-wider text-emerald-400 uppercase">
+          Yükleniyor...
+        </div>
+      </div>
+
+      <!-- QR KOD BÖLGESİ -->
+      <div class="flex flex-col items-center justify-center py-2 relative">
+        <div class="bg-white p-5 rounded-3xl border border-slate-700/50 shadow-2xl flex items-center justify-center w-52 h-52 sm:w-56 sm:h-56">
+          <div id="qr-code-element" class="w-full h-full flex items-center justify-center">
+            <!-- QR kod JS tarafından buraya çizilecek -->
+          </div>
+        </div>
+        <!-- Yenileme göstergesi veya Küçük Açıklama -->
+        <span class="mt-4 px-3.5 py-1.5 bg-slate-900/60 border border-slate-800 text-indigo-400 rounded-full text-[10px] sm:text-xs font-bold tracking-wider uppercase flex items-center gap-1.5 shadow-inner">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          Her gün otomatik yenilenir
+        </span>
+      </div>
+
+      <!-- FOOTER -->
+      <div class="pt-4 border-t border-slate-800/60 flex items-center justify-between text-[10px] sm:text-xs text-slate-500 font-medium">
+        <span>AYG Depo Yönetim Sistemi</span>
+        <span id="last-update">Sistem Aktif</span>
+      </div>
+    </div>
+
+    <!-- JAVASCRIPT KODLARI -->
+    <script>
+      const ATTENDANCE_SECRET_SALT = "AYG_ATTENDANCE_SECRET_2026";
+      let currentLoadedDate = "";
+
+      // Tarihi YYYY-MM-DD formatında al
+      function getFormattedToday() {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+
+      // Bugünün QR kod içeriğini üret
+      function generateDailyQRText() {
+        const todayStr = getFormattedToday();
+        return `AYG-ATTENDANCE-${todayStr}-${ATTENDANCE_SECRET_SALT}`;
+      }
+
+      // QR Kodu Çiz
+      function drawQRCode() {
+        const container = document.getElementById("qr-code-element");
+        if (!container) return;
+
+        container.innerHTML = ""; // Öncekini temizle
+        const qrText = generateDailyQRText();
+
+        new QRCode(container, {
+          text: qrText,
+          width: 200,
+          height: 200,
+          colorDark: "#0f172a", // slate-900
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.H
+        });
+
+        currentLoadedDate = getFormattedToday();
+        const lastUpdateText = document.getElementById("last-update");
+        if (lastUpdateText) {
+          lastUpdateText.textContent = `Güncelleme: ${currentLoadedDate}`;
+        }
+      }
+
+      // Saat ve Tarihi Güncelle
+      function updateClock() {
+        const timeElement = document.getElementById("live-time");
+        const dateElement = document.getElementById("live-date");
+        const now = new Date();
+
+        if (timeElement) {
+          timeElement.textContent = now.toLocaleTimeString("tr-TR", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit"
+          });
+        }
+
+        if (dateElement) {
+          dateElement.textContent = now.toLocaleDateString("tr-TR", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric"
+          });
+        }
+
+        // Gün değiştiğinde QR kodunu otomatik olarak yeniden çiz
+        const todayStr = getFormattedToday();
+        if (todayStr !== currentLoadedDate) {
+          drawQRCode();
+        }
+      }
+
+      // Başlat
+      window.addEventListener("DOMContentLoaded", () => {
+        drawQRCode();
+        updateClock();
+        setInterval(updateClock, 1000);
+      });
+    </script>
+  </body>
+</html>

@@ -44,9 +44,9 @@ function loadState() {
     state.supabaseUrl = parsed.supabaseUrl || state.supabaseUrl;
     state.supabaseKey = parsed.supabaseKey || state.supabaseKey;
   }
-  
+
   if (typeof applyTheme === "function") applyTheme();
-  
+
   const voiceToggle = document.getElementById("settings-voice-toggle");
   if (voiceToggle) voiceToggle.checked = state.voiceEnabled;
 
@@ -80,7 +80,7 @@ function generateId() {
 function initSupabaseClient() {
   const urlInput = document.getElementById("supabase-url-input");
   const keyInput = document.getElementById("supabase-key-input");
-  
+
   if (urlInput) urlInput.value = state.supabaseUrl;
   if (keyInput) keyInput.value = state.supabaseKey;
 
@@ -122,9 +122,9 @@ async function saveSupabaseSettings() {
     saveState();
     updateSupabaseStatusText("Yerel Mod (LocalStorage)", "text-slate-400 dark:text-slate-500");
     showToast("Bağlantı temizlendi. Yerel moda geçildi.", "warning");
-    
+
     // Yerel siparişleri yükle ve arayüzü çiz
-    if (typeof loadOrders === "function") loadOrders(); 
+    if (typeof loadOrders === "function") loadOrders();
     return;
   }
 
@@ -133,28 +133,28 @@ async function saveSupabaseSettings() {
   try {
     const creator = window.supabase ? window.supabase.createClient : supabasejs.createClient;
     const testClient = creator(url, key);
-    
+
     // Basit bir okuma testi yaparak API anahtarlarının doğruluğunu doğrula
     const { data, error } = await testClient.from("orders").select("id").limit(1);
-    
+
     if (error && error.code !== "PGRST116") { // PGRST116: Tablo boş veya bulunamadı hatası olabilir, ama erişim hatası değilse (örn: CORS veya yetki)
       throw error;
     }
-    
+
     // Bağlantı başarılı!
     state.supabaseUrl = url;
     state.supabaseKey = key;
     supabaseClient = testClient;
     saveState();
-    
+
     updateSupabaseStatusText("Bağlı (Bulut Senkronizasyonu Aktif)", "text-emerald-500");
     showToast("Bulut bağlantısı başarıyla kuruldu!", "success");
-    
+
     // Verileri buluttan çek
     if (typeof syncWithSupabase === "function") {
       await syncWithSupabase();
     }
-    
+
   } catch (err) {
     console.error("Supabase test hatası:", err);
     updateSupabaseStatusText("Bağlantı Başarısız! (Bilgileri Kontrol Edin)", "text-red-500");

@@ -310,12 +310,18 @@ function updateAdminUI() {
   const tabAdmin = document.getElementById("tab-admin");
   const btnClearHistory = document.getElementById("btn-clear-history");
   const btnSettingsToggle = document.getElementById("btn-settings-toggle");
+  const btnQrScan = document.getElementById("btn-qr-scan");
   
   const isSuper = state.activeUser === "Admin";
   
   if (tabAdmin) {
     if (isSuper) {
       tabAdmin.classList.remove("hidden");
+      // Admin girdiyse verileri yükle
+      if (typeof renderAdminQR === "function") renderAdminQR();
+      if (typeof loadShiftSettings === "function") loadShiftSettings();
+      if (typeof loadAttendanceLogs === "function") loadAttendanceLogs();
+      if (typeof populateNotificationTargets === "function") populateNotificationTargets();
     } else {
       tabAdmin.classList.add("hidden");
       if (state.currentTab === "admin") {
@@ -337,6 +343,21 @@ function updateAdminUI() {
       btnSettingsToggle.classList.remove("hidden");
     } else {
       btnSettingsToggle.classList.add("hidden");
+    }
+  }
+
+  if (btnQrScan) {
+    if (state.activeUser && !isSuper) {
+      btnQrScan.classList.remove("hidden");
+      // Bildirimleri denetle (Kullanıcı giriş yaptığında)
+      if (typeof checkStaffNotifications === "function") {
+        setTimeout(checkStaffNotifications, 1000);
+        if (window.notifInterval) clearInterval(window.notifInterval);
+        window.notifInterval = setInterval(checkStaffNotifications, 60000); // 1 dakikada bir kontrol
+      }
+    } else {
+      btnQrScan.classList.add("hidden");
+      if (window.notifInterval) clearInterval(window.notifInterval);
     }
   }
 }

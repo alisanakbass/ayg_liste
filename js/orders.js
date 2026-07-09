@@ -2063,40 +2063,46 @@ function renderAdminVehicles() {
 function switchAdminSubTab(subTab) {
   const sectProfiles = document.getElementById("admin-section-profiles");
   const sectVehicles = document.getElementById("admin-section-vehicles");
+  const sectAttendance = document.getElementById("admin-section-attendance");
+  
   const btnProfiles = document.getElementById("btn-admin-tab-profiles");
   const btnVehicles = document.getElementById("btn-admin-tab-vehicles");
+  const btnAttendance = document.getElementById("btn-admin-tab-attendance");
+  
   const adminTitle = document.getElementById("admin-title-text");
   
-  if (!sectProfiles || !sectVehicles) return;
+  if (!sectProfiles || !sectVehicles || !sectAttendance) return;
   
+  const activeClass = "flex-1 py-2.5 text-center text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm";
+  const inactiveClass = "flex-1 py-2.5 text-center text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300";
+
+  sectProfiles.classList.add("hidden");
+  sectVehicles.classList.add("hidden");
+  sectAttendance.classList.add("hidden");
+
+  if (btnProfiles) btnProfiles.className = inactiveClass;
+  if (btnVehicles) btnVehicles.className = inactiveClass;
+  if (btnAttendance) btnAttendance.className = inactiveClass;
+
   if (subTab === "profiles") {
     sectProfiles.classList.remove("hidden");
-    sectVehicles.classList.add("hidden");
-    
     if (adminTitle) adminTitle.textContent = "Yönetici Paneli (Personel)";
-    
-    if (btnProfiles) {
-      btnProfiles.className = "flex-1 py-2.5 text-center text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm";
-    }
-    if (btnVehicles) {
-      btnVehicles.className = "flex-1 py-2.5 text-center text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300";
-    }
-    
+    if (btnProfiles) btnProfiles.className = activeClass;
     if (typeof renderAdminProfiles === "function") renderAdminProfiles();
   } else if (subTab === "vehicles") {
-    sectProfiles.classList.add("hidden");
     sectVehicles.classList.remove("hidden");
-    
     if (adminTitle) adminTitle.textContent = "Yönetici Paneli (Araçlar)";
-    
-    if (btnProfiles) {
-      btnProfiles.className = "flex-1 py-2.5 text-center text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300";
-    }
-    if (btnVehicles) {
-      btnVehicles.className = "flex-1 py-2.5 text-center text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm";
-    }
-    
+    if (btnVehicles) btnVehicles.className = activeClass;
     if (typeof renderAdminVehicles === "function") renderAdminVehicles();
+  } else if (subTab === "attendance") {
+    sectAttendance.classList.remove("hidden");
+    if (adminTitle) adminTitle.textContent = "Yönetici Paneli (Vardiya & Giriş-Çıkış)";
+    if (btnAttendance) btnAttendance.className = activeClass;
+    
+    if (typeof renderAdminQR === "function") renderAdminQR();
+    if (typeof loadShiftSettings === "function") loadShiftSettings();
+    if (typeof loadAttendanceLogs === "function") loadAttendanceLogs();
+    if (typeof populateNotificationTargets === "function") populateNotificationTargets();
   }
 }
 

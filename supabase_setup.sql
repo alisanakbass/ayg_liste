@@ -104,15 +104,19 @@ CREATE TABLE IF NOT EXISTS public.vehicles (
 ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
 
 -- Politikalar
+DROP POLICY IF EXISTS "Allow anonymous read access to vehicles" ON public.vehicles;
 CREATE POLICY "Allow anonymous read access to vehicles" ON public.vehicles
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Allow anonymous insert access to vehicles" ON public.vehicles;
 CREATE POLICY "Allow anonymous insert access to vehicles" ON public.vehicles
     FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Allow anonymous update access to vehicles" ON public.vehicles;
 CREATE POLICY "Allow anonymous update access to vehicles" ON public.vehicles
     FOR UPDATE USING (true) WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Allow anonymous delete access to vehicles" ON public.vehicles;
 CREATE POLICY "Allow anonymous delete access to vehicles" ON public.vehicles
     FOR DELETE USING (true);
 
@@ -131,4 +135,119 @@ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.vehicles;
   END IF;
 END $$;
+
+-- Attendance (Giriş/Çıkış Logları) Tablosu
+CREATE TABLE IF NOT EXISTS public.attendance (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_name TEXT NOT NULL,
+    action_type TEXT NOT NULL, -- 'Giriş' veya 'Çıkış'
+    late_status TEXT,          -- 'Zamanında', 'Geç Kaldı', 'Erken Çıktı', 'Fazla Mesai'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Shift Settings (Vardiya Saatleri) Tablosu
+CREATE TABLE IF NOT EXISTS public.shift_settings (
+    day_index INT PRIMARY KEY, -- 0: Pazar, 1: Pazartesi ... 6: Cumartesi
+    day_name TEXT NOT NULL,
+    start_time TIME NOT NULL DEFAULT '08:30:00',
+    end_time TIME NOT NULL DEFAULT '18:00:00',
+    is_active BOOLEAN NOT NULL DEFAULT true
+);
+
+-- Notifications (Uyarı ve Bildirimler) Tablosu
+CREATE TABLE IF NOT EXISTS public.notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_name TEXT NOT NULL, -- Personel ismi veya 'Tümü'
+    message TEXT NOT NULL,
+    is_read BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- RLS Politikaları
+ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shift_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public select attendance" ON public.attendance;
+CREATE POLICY "Allow public select attendance" ON public.attendance FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert attendance" ON public.attendance;
+CREATE POLICY "Allow public insert attendance" ON public.attendance FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public delete attendance" ON public.attendance;
+CREATE POLICY "Allow public delete attendance" ON public.attendance FOR DELETE USING (true);
+
+DROP POLICY IF EXISTS "Allow public select shift_settings" ON public.shift_settings;
+CREATE POLICY "Allow public select shift_settings" ON public.shift_settings FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert shift_settings" ON public.shift_settings;
+CREATE POLICY "Allow public insert shift_settings" ON public.shift_settings FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public update shift_settings" ON public.shift_settings;
+CREATE POLICY "Allow public update shift_settings" ON public.shift_settings FOR UPDATE USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public select notifications" ON public.notifications;
+CREATE POLICY "Allow public select notifications" ON public.notifications FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert notifications" ON public.notifications;
+CREATE POLICY "Allow public insert notifications" ON public.notifications FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public update notifications" ON public.notifications;
+CREATE POLICY "Allow public update notifications" ON public.notifications FOR UPDATE USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public delete notifications" ON public.notifications;
+CREATE POLICY "Allow public delete notifications" ON public.notifications FOR DELETE USING (true);
+
+-- Varsayılan vardiya saatlerini doldur (Eğer tablo boşsa)
+INSERT INTO public.shift_settings (day_index, day_name, start_time, end_time, is_active)
+VALUES 
+  (1, 'Pazartesi', '08:30:00', '18:00:00', true),
+  (2, 'Salı', '08:30:00', '18:00:00', true),
+  (3, 'Çarşamba', '08:30:00', '18:00:00', true),
+  (4, 'Perşembe', '08:30:00', '18:00:00', true),
+  (5, 'Cuma', '08:30:00', '18:00:00', true),
+  (6, 'Cumartesi', '08:30:00', '13:00:00', true),
+  (0, 'Pazar', '00:00:00', '00:00:00', false)
+ON CONFLICT (day_index) DO NOTHING;
+
+-- Realtime yayınına ekleme
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_rel pr 
+    JOIN pg_publication p ON p.oid = pr.prpubid 
+    JOIN pg_class c ON c.oid = pr.prrelid 
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE p.pubname = 'supabase_realtime' 
+      AND n.nspname = 'public' 
+      AND c.relname = 'attendance'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.attendance;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_rel pr 
+    JOIN pg_publication p ON p.oid = pr.prpubid 
+    JOIN pg_class c ON c.oid = pr.prrelid 
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE p.pubname = 'supabase_realtime' 
+      AND n.nspname = 'public' 
+      AND c.relname = 'shift_settings'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.shift_settings;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_rel pr 
+    JOIN pg_publication p ON p.oid = pr.prpubid 
+    JOIN pg_class c ON c.oid = pr.prrelid 
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE p.pubname = 'supabase_realtime' 
+      AND n.nspname = 'public' 
+      AND c.relname = 'notifications'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+  END IF;
+END $$;
+
 
