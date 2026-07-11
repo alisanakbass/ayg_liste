@@ -421,8 +421,8 @@ window.addEventListener("DOMContentLoaded", init);
 // Global AudioContext (Tarayıcı otomatik oynatma engellerini aşmak için)
 let globalAudioContext = null;
 
-// Kullanıcı sayfaya ilk tıkladığında ses motorunu hazırla
-window.addEventListener("click", () => {
+// Kullanıcı sayfaya ilk tıkladığında veya dokunduğunda ses motorunu hazırla
+const initAudio = () => {
   try {
     if (!globalAudioContext) {
       globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -432,14 +432,23 @@ window.addEventListener("click", () => {
   } catch (e) {
     console.warn("Ses motoru başlatılamadı:", e);
   }
-}, { once: true });
+};
+window.addEventListener("click", initAudio, { once: true });
+window.addEventListener("touchstart", initAudio, { once: true });
+window.addEventListener("pointerdown", initAudio, { once: true });
 
 // Dinamik Zil/Bildirim Sesi
 function playNotificationSound() {
   try {
-    const audioContext = globalAudioContext || new (window.AudioContext || window.webkitAudioContext)();
+    // Kullanıcı henüz etkileşime girmediyse hata fırlatmamak için çalmaya yeltenme
+    if (!globalAudioContext) {
+      console.log("Ses motoru henüz kullanıcı etkileşimiyle başlatılmadı.");
+      return;
+    }
+
+    const audioContext = globalAudioContext;
     if (audioContext.state === "suspended") {
-      audioContext.resume();
+      audioContext.resume().catch(() => {});
     }
 
     // 2 tonlu şık zil sesi (C5 ve E5)
