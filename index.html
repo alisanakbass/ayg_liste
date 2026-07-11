@@ -2301,12 +2301,37 @@
         window.addEventListener("load", () => {
           navigator.serviceWorker
             .register("sw.js")
-            .then((reg) =>
-              console.log("Service Worker başarıyla kaydedildi!", reg),
-            )
+            .then((reg) => {
+              console.log("Service Worker başarıyla kaydedildi!", reg);
+              
+              // Android Chrome için arka planda 30 saniyede bir güncelleme denetle
+              setInterval(() => {
+                reg.update().catch(() => {});
+              }, 30000);
+
+              // Yeni bir güncelleme yüklendiğinde eski worker'ı beklemeden devreye al
+              reg.onupdatefound = () => {
+                const installingWorker = reg.installing;
+                if (installingWorker) {
+                  installingWorker.onstatechange = () => {
+                    if (installingWorker.state === "installed") {
+                      if (navigator.serviceWorker.controller) {
+                        console.log("Yeni güncelleme kuruldu, sürüm yenileniyor...");
+                        window.location.reload();
+                      }
+                    }
+                  };
+                }
+              };
+            })
             .catch((err) =>
               console.error("Service Worker kaydı başarısız:", err),
             );
+        });
+
+        // Kontrol değiştiğinde (yeni SW devreye girdiğinde) log bas
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          console.log("Yeni Service Worker aktif edildi ve kontrolü devraldı.");
         });
       }
     </script>
