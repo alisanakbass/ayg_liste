@@ -418,10 +418,30 @@ function updateAdminUI() {
 // Başlat
 window.addEventListener("DOMContentLoaded", init);
 
+// Global AudioContext (Tarayıcı otomatik oynatma engellerini aşmak için)
+let globalAudioContext = null;
+
+// Kullanıcı sayfaya ilk tıkladığında ses motorunu hazırla
+window.addEventListener("click", () => {
+  try {
+    if (!globalAudioContext) {
+      globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+    } else if (globalAudioContext.state === "suspended") {
+      globalAudioContext.resume();
+    }
+  } catch (e) {
+    console.warn("Ses motoru başlatılamadı:", e);
+  }
+}, { once: true });
+
 // Dinamik Zil/Bildirim Sesi
 function playNotificationSound() {
   try {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const audioContext = globalAudioContext || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioContext.state === "suspended") {
+      audioContext.resume();
+    }
+
     // 2 tonlu şık zil sesi (C5 ve E5)
     const playTone = (freq, start, duration) => {
       const osc = audioContext.createOscillator();

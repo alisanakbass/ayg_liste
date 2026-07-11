@@ -272,4 +272,7 @@ CREATE POLICY "Allow public insert push_subscriptions" ON public.push_subscripti
 DROP POLICY IF EXISTS "Allow public delete push_subscriptions" ON public.push_subscriptions;
 CREATE POLICY "Allow public delete push_subscriptions" ON public.push_subscriptions FOR DELETE USING (true);
 
+DROP POLICY IF EXISTS "Allow public update push_subscriptions" ON public.push_subscriptions;
+CREATE POLICY "Allow public update push_subscriptions" ON public.push_subscriptions FOR UPDATE USING (true);
+
 
