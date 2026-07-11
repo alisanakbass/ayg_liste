@@ -64,14 +64,27 @@ function initSupabaseRealtime() {
           showToast("🔔 Yeni bir sipariş geldi!", "success");
           playNotificationSound();
           
-          // Tarayıcı Arka Plan Bildirimi
+          // Tarayıcı Arka Plan Bildirimi (Service Worker ile Mobilde Yukarıdan Düşmesi İçin)
           if ("Notification" in window && Notification.permission === "granted") {
             const companyName = payload.new.customer_address.split(" [Adres:")[0] || "Müşteri";
-            new Notification("🔔 Yeni AYG Siparişi!", {
+            const notifTitle = "🔔 Yeni AYG Siparişi!";
+            const notifOptions = {
               body: `${companyName} yeni bir sipariş oluşturdu.`,
               icon: "icon-192.png",
+              badge: "icon-192.png",
+              vibrate: [200, 100, 200],
               tag: payload.new.id
-            });
+            };
+
+            if ("serviceWorker" in navigator) {
+              navigator.serviceWorker.ready.then(registration => {
+                registration.showNotification(notifTitle, notifOptions);
+              }).catch(() => {
+                new Notification(notifTitle, notifOptions);
+              });
+            } else {
+              new Notification(notifTitle, notifOptions);
+            }
           }
         } else if (payload.eventType === "UPDATE") {
           const oldRecord = payload.old;
