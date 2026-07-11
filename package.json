@@ -1,0 +1,10 @@
+{
+  "name": "ayg-siparis",
+  "version": "1.0.0",
+  "description": "AYG Sipariş Sistemi",
+  "main": "index.html",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "web-push": "^3.6.7"
+  }
+}
