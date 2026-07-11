@@ -98,6 +98,11 @@ async function selectProfile(name) {
   
   if (typeof updateAdminUI === "function") updateAdminUI();
   switchTab(state.currentTab || "active");
+
+  if (typeof subscribeUserToPush === "function" && Notification.permission === "granted") {
+    subscribeUserToPush();
+  }
+
   speakText(`Hoş geldiniz ${name === 'Admin' ? 'Yönetici' : name}.`);
 }
 

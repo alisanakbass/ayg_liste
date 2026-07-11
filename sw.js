@@ -92,3 +92,55 @@ self.addEventListener('fetch', (e) => {
     })
   );
 });
+
+// =============================================
+// WEB PUSH BİLDİRİM YÖNETİMİ
+// =============================================
+
+// Push Bildirimini Yakala (Tarayıcı Kapalıyken Çalışır)
+self.addEventListener('push', (event) => {
+  let payload = { title: "🔔 Yeni AYG Siparişi!", body: "Yeni bir malzeme siparişi geldi." };
+
+  if (event.data) {
+    try {
+      payload = event.data.json();
+    } catch (e) {
+      payload.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: payload.body,
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    vibrate: [300, 100, 300],
+    data: {
+      url: './index.html'
+    }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, options)
+  );
+});
+
+// Bildirime Tıklama Olayı (Uygulamayı Ön Plana Al)
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // Eğer uygulama zaten bir sekmede açıksa odaklan
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i];
+        if (client.url.includes('index.html') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // Açık sekme yoksa yeni sekme aç
+      if (clients.openWindow) {
+        return clients.openWindow('./index.html');
+      }
+    })
+  );
+});

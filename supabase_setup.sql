@@ -253,4 +253,23 @@ END $$;
 -- Profiles tablosuna yönetici yetkisi kolonu ekleme
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
 
+-- Push Abonelikleri Tablosu
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_name TEXT NOT NULL,
+    subscription JSONB NOT NULL UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public select push_subscriptions" ON public.push_subscriptions;
+CREATE POLICY "Allow public select push_subscriptions" ON public.push_subscriptions FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert push_subscriptions" ON public.push_subscriptions;
+CREATE POLICY "Allow public insert push_subscriptions" ON public.push_subscriptions FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public delete push_subscriptions" ON public.push_subscriptions;
+CREATE POLICY "Allow public delete push_subscriptions" ON public.push_subscriptions FOR DELETE USING (true);
+
 

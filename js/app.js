@@ -309,7 +309,9 @@ async function init() {
     const isDismissed = localStorage.getItem("ayg-notification-dismissed") === "true";
     if (!isDismissed) {
       Notification.requestPermission().then(permission => {
-        if (permission !== "granted") {
+        if (permission === "granted") {
+          setTimeout(subscribeUserToPush, 2000);
+        } else {
           // Kullanıcı izin vermediyse (reddettiyse veya kapattıysa) bir daha otomatik sorma
           localStorage.setItem("ayg-notification-dismissed", "true");
         }
@@ -339,6 +341,11 @@ async function init() {
     }
 
     switchTab(state.currentTab || "active");
+
+    // Web Push aboneliğini sessizce güncelle/kaydet
+    if (Notification.permission === "granted") {
+      setTimeout(subscribeUserToPush, 2000);
+    }
   } else {
     if (typeof showProfileScreen === "function") showProfileScreen();
   }
@@ -424,5 +431,68 @@ function playNotificationSound() {
     playTone(659.25, 0.15, 0.35); // Bap
   } catch (e) {
     console.warn("Ses çalınamadı:", e);
+  }
+}
+
+// =============================================
+// WEB PUSH ABONELİK AYARLARI
+// =============================================
+const PUBLIC_VAPID_KEY = "BBgNO2NXgx6kTb2YFoR-cimPL0PwaO7GB5xDpc7xIgFeSjrRmejFC6aHsUUPgSmbIxCBLLmVVPfCJLlrEMNpjl8";
+
+// Base64 VAPID Key'i Uint8Array'e Dönüştürme (Web Push Standardı)
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// Tarayıcıyı Google/Apple Push Servislerine Kaydet ve Jetonu Supabase'e Yaz
+async function subscribeUserToPush() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    console.warn("Web Push bu tarayıcıda desteklenmiyor.");
+    return;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    
+    // Mevcut bir abonelik var mı kontrol et
+    let subscription = await registration.pushManager.getSubscription();
+    
+    if (!subscription) {
+      // Yoksa yeni abonelik al
+      const subscribeOptions = {
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
+      };
+      subscription = await registration.pushManager.subscribe(subscribeOptions);
+    }
+
+    // Aboneliği Supabase'e kaydet (upsert mantığıyla)
+    if (supabaseClient && state.activeUser) {
+      const { error } = await supabaseClient
+        .from('push_subscriptions')
+        .upsert([{ 
+          profile_name: state.activeUser, 
+          subscription: subscription.toJSON() 
+        }], { onConflict: 'subscription' });
+
+      if (error) {
+        console.error("Abonelik Supabase'e kaydedilemedi:", error);
+      } else {
+        console.log("Cihaz Web Push aboneliği başarıyla kaydedildi/güncellendi.");
+      }
+    }
+  } catch (err) {
+    console.error("Web Push abonelik hatası:", err);
   }
 }
