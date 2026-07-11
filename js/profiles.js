@@ -99,8 +99,17 @@ async function selectProfile(name) {
   if (typeof updateAdminUI === "function") updateAdminUI();
   switchTab(state.currentTab || "active");
 
-  if (typeof subscribeUserToPush === "function" && Notification.permission === "granted") {
-    subscribeUserToPush();
+  // iOS ve genel tarayıcılarda kullanıcı tıklaması (etkileşim) anında bildirim izni isteme
+  if ("Notification" in window) {
+    if (Notification.permission === "default") {
+      Notification.requestPermission().then(permission => {
+        if (permission === "granted" && typeof subscribeUserToPush === "function") {
+          subscribeUserToPush();
+        }
+      });
+    } else if (Notification.permission === "granted" && typeof subscribeUserToPush === "function") {
+      subscribeUserToPush();
+    }
   }
 
   speakText(`Hoş geldiniz ${name === 'Admin' ? 'Yönetici' : name}.`);
