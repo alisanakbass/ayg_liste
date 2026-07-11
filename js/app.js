@@ -64,7 +64,7 @@ function initSupabaseRealtime() {
           showToast("🔔 Yeni bir sipariş geldi!", "success");
           playNotificationSound();
           
-          // Tarayıcı Arka Plan Bildirimi (Service Worker ile Mobilde Yukarıdan Düşmesi İçin)
+          // Tarayıcı Bildirimi (Service Worker ve Normal Bildirim Desteğiyle)
           if ("Notification" in window && Notification.permission === "granted") {
             const companyName = payload.new.customer_address.split(" [Adres:")[0] || "Müşteri";
             const notifTitle = "🔔 Yeni AYG Siparişi!";
@@ -76,14 +76,22 @@ function initSupabaseRealtime() {
               tag: payload.new.id
             };
 
-            if ("serviceWorker" in navigator) {
-              navigator.serviceWorker.ready.then(registration => {
-                registration.showNotification(notifTitle, notifOptions);
-              }).catch(() => {
+            try {
+              if ("serviceWorker" in navigator) {
+                navigator.serviceWorker.getRegistration().then(reg => {
+                  if (reg) {
+                    reg.showNotification(notifTitle, notifOptions);
+                  } else {
+                    new Notification(notifTitle, notifOptions);
+                  }
+                }).catch(() => {
+                  new Notification(notifTitle, notifOptions);
+                });
+              } else {
                 new Notification(notifTitle, notifOptions);
-              });
-            } else {
-              new Notification(notifTitle, notifOptions);
+              }
+            } catch (e) {
+              console.warn("Bildirim hatası:", e);
             }
           }
         } else if (payload.eventType === "UPDATE") {
@@ -488,6 +496,9 @@ async function subscribeUserToPush() {
 
       if (error) {
         console.error("Abonelik Supabase'e kaydedilemedi:", error);
+        if (error.message && error.message.includes("does not exist")) {
+          showToast("⚠️ Veritabanında push_subscriptions tablosu bulunamadı! Lütfen SQL kodunu çalıştırın.", "warning");
+        }
       } else {
         console.log("Cihaz Web Push aboneliği başarıyla kaydedildi/güncellendi.");
       }
