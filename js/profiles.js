@@ -116,7 +116,7 @@ async function addNewProfileAdmin() {
 }
 
 async function createProfile(name, inputElement) {
-  if (state.activeUser !== "Admin") {
+  if (!isAdminUser()) {
     showToast("Personel ekleme yetkiniz yok!", "error");
     return;
   }
@@ -157,7 +157,7 @@ async function createProfile(name, inputElement) {
 async function confirmDeleteProfile(name, event) {
   event.stopPropagation(); // Profil seçilmesini engelle
   
-  if (state.activeUser !== "Admin") {
+  if (!isAdminUser()) {
     showToast("Personel silme yetkiniz yok!", "error");
     return;
   }
@@ -216,26 +216,97 @@ function renderAdminProfiles() {
     return;
   }
 
+  // Yöneticiler yetki değiştirebilir
+  const isSuperAdmin = isAdminUser();
+
   container.innerHTML = displayProfiles
     .map(
-      (name) => `
-      <div class="flex items-center justify-between p-3.5 hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors animate-slide-in">
+      (name) => {
+        const isAdmin = state.adminProfiles && state.adminProfiles.includes(name);
+        
+        // Yetki butonunun HTML'i
+        const privilegeButton = isSuperAdmin 
+          ? `<button
+              onclick="toggleAdminPrivilege('${name}', event)"
+              class="px-2.5 py-1.5 ${isAdmin ? 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300' : 'bg-amber-500 hover:bg-amber-600 text-white'} rounded-lg font-bold text-xs transition-all active:scale-95 flex items-center gap-1 cursor-pointer border border-transparent"
+              title="${isAdmin ? 'Yönetici Yetkisini Kaldır' : 'Yönetici Yetkisi Ver'}"
+            >
+              ${isAdmin ? '🛡️ Yetkiyi Kaldır' : '👑 Yönetici Yap'}
+            </button>`
+          : "";
+
+        return `
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors animate-slide-in gap-3">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 rounded-lg flex items-center justify-center font-bold text-sm">
-            ${name.charAt(0).toUpperCase()}
+          <div class="w-8 h-8 ${isAdmin ? 'bg-amber-600/10 text-amber-650 dark:text-amber-400' : 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-400'} rounded-lg flex items-center justify-center font-bold text-sm">
+            ${isAdmin ? '👑' : name.charAt(0).toUpperCase()}
           </div>
-          <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">${name}</span>
+          <div class="flex flex-col">
+            <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">${name}</span>
+            ${isAdmin ? '<span class="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">Yönetici</span>' : ''}
+          </div>
         </div>
-        <button
-          onclick="confirmDeleteProfile('${name}', event)"
-          class="px-3 py-1.5 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white rounded-lg font-bold text-xs transition-all active:scale-95 flex items-center gap-1 cursor-pointer"
-          title="Personeli Sil"
-        >
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-          Sil
-        </button>
+        <div class="flex items-center gap-2 self-end sm:self-auto">
+          ${privilegeButton}
+          <button
+            onclick="confirmDeleteProfile('${name}', event)"
+            class="px-3 py-1.5 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white rounded-lg font-bold text-xs transition-all active:scale-95 flex items-center gap-1 cursor-pointer"
+            title="Personeli Sil"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            Sil
+          </button>
+        </div>
       </div>
-    `,
+    `;
+      }
     )
     .join("");
+}
+
+// Personel Yönetici Yetkisini Aç/Kapat (Sadece Süper Admin)
+async function toggleAdminPrivilege(name, event) {
+  event.stopPropagation();
+  
+  if (!isAdminUser()) {
+    showToast("Yönetici yetkilerini sadece Yöneticiler değiştirebilir!", "error");
+    return;
+  }
+
+  if (!state.adminProfiles) {
+    state.adminProfiles = [];
+  }
+
+  const isCurrentlyAdmin = state.adminProfiles.includes(name);
+  const nextStatus = !isCurrentlyAdmin;
+
+  if (supabaseClient) {
+    try {
+      showToast("Yetki güncelleniyor...", "info");
+      
+      const { error } = await supabaseClient
+        .from('profiles')
+        .update({ is_admin: nextStatus })
+        .eq('name', name);
+        
+      if (error) throw error;
+
+      await syncWithSupabase(true);
+      showToast(`"${name}" adlı personelin yetkisi başarıyla güncellendi!`, "success");
+    } catch (err) {
+      console.error("Yetki güncelleme hatası:", err);
+      showToast("Bulutta yetki güncellenemedi!", "error");
+    }
+  } else {
+    // Local / Çevrimdışı mod
+    if (isCurrentlyAdmin) {
+      state.adminProfiles = state.adminProfiles.filter(p => p !== name);
+    } else {
+      state.adminProfiles.push(name);
+    }
+    saveState();
+    renderProfiles();
+    renderAdminProfiles();
+    showToast(`"${name}" adlı personelin yetkisi yerel olarak güncellendi!`, "success");
+  }
 }

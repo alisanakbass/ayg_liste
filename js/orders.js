@@ -67,6 +67,7 @@ function addOrderItem(name = "", qty = 1, unit = "adet") {
   <option value="adet" ${unit === "adet" ? "selected" : ""}>Adet</option>
   <option value="kilo" ${unit === "kilo" ? "selected" : ""}>Kilo</option>
   <option value="çuval" ${unit === "çuval" ? "selected" : ""}>Çuval</option>
+  <option value="m³" ${unit === "m³" ? "selected" : ""}>m³ (Metreküp)</option>
   <option value="kutu" ${unit === "kutu" ? "selected" : ""}>Kutu</option>
   <option value="paket" ${unit === "paket" ? "selected" : ""}>Paket</option>
   <option value="metre" ${unit === "metre" ? "selected" : ""}>Metre</option>
@@ -476,6 +477,12 @@ async function startPicking(orderId) {
     return;
   }
 
+  const confirmed = await showCustomConfirm(
+    "Siparişi Hazırla?",
+    "Bu siparişi hazırlamaya başlamak istediğinize emin misiniz?"
+  );
+  if (!confirmed) return;
+
   const voiceMsg = `${state.activeUser} siparişi hazırlamaya başladı.`;
 
   if (supabaseClient) {
@@ -628,11 +635,12 @@ function renderModalItems() {
   <div class="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 border-slate-200 dark:border-slate-800 pt-2 sm:pt-0">
     <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold">Depodaki:</span>
     <div class="flex items-center gap-1.5 font-bold">
-      <button onclick="adjustQty(${item.originalIndex}, -1); saveModalOrderProgress();" class="w-8 h-8 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 rounded-lg font-bold text-lg hover:bg-red-100 dark:hover:bg-red-500/20 active:scale-90 transition-all flex items-center justify-center" ${disableControls}>−</button>
+      <button onclick="event.stopPropagation(); event.preventDefault(); adjustQty(${item.originalIndex}, -1); saveModalOrderProgress();" class="w-8 h-8 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 rounded-lg font-bold text-lg hover:bg-red-100 dark:hover:bg-red-500/20 active:scale-90 transition-all flex items-center justify-center" ${disableControls}>−</button>
       <input type="number" id="fulfilled-${item.originalIndex}" value="${item.fulfilled_quantity}" min="0" max="${item.requested_quantity}"
         class="w-14 text-center border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-lg py-1.5 font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+        onclick="event.stopPropagation();"
         onchange="validateQty(${item.originalIndex}, ${item.requested_quantity}); saveModalOrderProgress();" ${disableInput} />
-      <button onclick="adjustQty(${item.originalIndex}, 1, ${item.requested_quantity}); saveModalOrderProgress();" class="w-8 h-8 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/20 rounded-lg font-bold text-lg hover:bg-green-100 dark:hover:bg-green-200 active:scale-90 transition-all flex items-center justify-center" ${disableControls}>+</button>
+      <button onclick="event.stopPropagation(); event.preventDefault(); adjustQty(${item.originalIndex}, 1, ${item.requested_quantity}); saveModalOrderProgress();" class="w-8 h-8 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/20 rounded-lg font-bold text-lg hover:bg-green-100 dark:hover:bg-green-200 active:scale-90 transition-all flex items-center justify-center" ${disableControls}>+</button>
     </div>
   </div>
 </div>
@@ -811,7 +819,7 @@ function renderHistory() {
                     <span>⚠</span> Kısmi (Eksikli)
                    </span>`;
 
-              const isAdmin = state.activeUser === "Admin";
+              const isAdmin = isAdminUser();
               const deleteButton = isAdmin
                 ? `<button onclick="deleteHistoryOrder('${o.id}')" 
                     class="bg-red-50 dark:bg-red-500/10 hover:bg-red-600 hover:text-white text-red-600 dark:text-red-400 text-xs px-3.5 py-2.5 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-1 cursor-pointer border border-red-200 dark:border-red-500/20" 
@@ -902,7 +910,7 @@ function changeHistoryPage(delta) {
 }
 
 async function deleteHistoryOrder(orderId) {
-  if (state.activeUser !== "Admin") {
+  if (!isAdminUser()) {
     showToast("Bu işlemi sadece yönetici yapabilir!", "error");
     return;
   }
@@ -1074,7 +1082,7 @@ function showCustomConfirm(title, message) {
 }
 
 async function clearAllHistory() {
-  if (state.activeUser !== "Admin") {
+  if (!isAdminUser()) {
     showToast("Geçmişi temizleme yetkiniz yok!", "error");
     return;
   }

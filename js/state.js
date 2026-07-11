@@ -26,16 +26,27 @@ let state = {
   supabaseKey: "sb_publishable_tlsSFNjL-zfH-KUWShqIkQ_H5G97Hvd",
   modalSortOrder: "unchecked-first", // 'normal', 'unchecked-first', 'checked-first'
   currentModalOrder: null,
-  adminPassword: "1234"
+  adminPassword: "1234",
+  adminProfiles: []
 };
 
 let supabaseClient = null;
 
 function loadState() {
+  // Yönetici Kilit Ekranı Kontrolü
+  const isAuthorized = localStorage.getItem("ayg-access-authorized") === "true";
+  const lockScreen = document.getElementById("app-lock-screen");
+  if (isAuthorized) {
+    if (lockScreen) lockScreen.classList.add("hidden");
+  } else {
+    if (lockScreen) lockScreen.classList.remove("hidden");
+  }
+
   const saved = localStorage.getItem("ayg-state");
   if (saved) {
     const parsed = JSON.parse(saved);
     state.profiles = parsed.profiles || state.profiles;
+    state.adminProfiles = parsed.adminProfiles || [];
     state.vehicles = parsed.vehicles || [];
     state.orders = parsed.orders || [];
     state.activeUser = parsed.activeUser || null;
@@ -59,6 +70,7 @@ function saveState() {
     "ayg-state",
     JSON.stringify({
       profiles: state.profiles,
+      adminProfiles: state.adminProfiles || [],
       vehicles: state.vehicles,
       orders: state.orders,
       activeUser: state.activeUser,
@@ -159,5 +171,27 @@ async function saveSupabaseSettings() {
     console.error("Supabase test hatası:", err);
     updateSupabaseStatusText("Bağlantı Başarısız! (Bilgileri Kontrol Edin)", "text-red-500");
     showToast("Bağlantı kurulamadı. SQL şeması kurulu mu veya API Key doğru mu?", "error");
+  }
+}
+
+// Global Yetki Kontrolü
+function isAdminUser() {
+  return state.activeUser === "Admin" || (state.adminProfiles && state.adminProfiles.includes(state.activeUser));
+}
+
+// Yönetici Kilit Ekranı Şifre Doğrulaması
+function verifyLockScreenPassword() {
+  const input = document.getElementById("lock-screen-password-input");
+  const password = input ? input.value : "";
+  
+  if (password === state.adminPassword) {
+    localStorage.setItem("ayg-access-authorized", "true");
+    const lockScreen = document.getElementById("app-lock-screen");
+    if (lockScreen) lockScreen.classList.add("hidden");
+    showToast("Erişim doğrulandı!", "success");
+    // Uygulama başlangıcını tetikle
+    if (typeof init === "function") init();
+  } else {
+    showToast("Hatalı yönetici şifresi!", "error");
   }
 }

@@ -1,0 +1,1428 @@
+<!doctype html>
+<html lang="tr" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>AYG Sipariş Portalı</title>
+    <!-- Mobil Ana Ekrana Ekleme Desteği -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="AYG B2B" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+    
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+            },
+            colors: {
+              ayg: {
+                red: "#dc2626", // Kurumsal Kırmızı
+                "red-dark": "#b91c1c",
+                "red-light": "#fee2e2",
+                dark: "#1e293b", // Slate 800
+                light: "#f8fafc" // Slate 50
+              }
+            },
+            boxShadow: {
+              premium: "0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)",
+              "premium-hover": "0 20px 25px -5px rgba(220, 38, 38, 0.08), 0 10px 10px -6px rgba(220, 38, 38, 0.08)",
+            }
+          }
+        }
+      };
+    </script>
+    
+    <!-- Leaflet Harita Kütüphanesi -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+      /* İnce scrollbar tasarımı */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.3);
+        border-radius: 99px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(220, 38, 38, 0.5);
+      }
+      
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .animate-slide-in {
+        animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      
+      /* Wizard animasyon geçişleri */
+      .step-panel {
+        display: none;
+      }
+      .step-panel.active {
+        display: block;
+        animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      
+      /* Harita yüklenirken boyutu sabitleyelim */
+      #map-canvas {
+        height: 380px;
+        z-index: 10;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-slate-50 text-slate-800 min-h-screen transition-colors duration-300 flex flex-col font-sans relative selection:bg-red-500/20 selection:text-red-900"
+  >
+
+    <!-- TOAST CONTAINER -->
+    <div
+      id="toast-container"
+      class="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-11/12 max-w-sm"
+    ></div>
+
+    <!-- ÜST BAR (Görseldeki AYG B2B Tasarımına Uygun) -->
+    <header class="border-b border-slate-200 bg-white sticky top-0 z-30 shadow-sm">
+      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <!-- AYG Logo Sembolü -->
+          <div class="flex items-center gap-2">
+            <img src="icon-192.png" class="w-8 h-8 object-contain rounded-lg" alt="AYG Logo" />
+            <span class="text-lg font-extrabold text-slate-900 tracking-tight">AYG <span class="text-red-600">SİPARİŞ</span></span>
+          </div>
+        </div>
+        
+        <!-- Bağlantı Durumu -->
+        <div id="connection-status" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-xs font-bold text-slate-500">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" id="status-dot"></span>
+          <span id="status-text">Bağlanıyor...</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-6 md:py-8 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      
+      <!-- SİPARİŞ SİHİRBAZI (Sol Kısım 2/3 Genişlik) -->
+      <div class="lg:col-span-2 flex flex-col gap-6">
+        
+        <!-- ÜST ADIM GÖSTERGESİ (Steppers) - PC'de yatay, Mobilde İlerleme Çubuğu -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-premium">
+          <!-- PC İçin Aşamalar -->
+          <div class="hidden sm:flex items-center justify-around relative">
+            <div class="absolute top-1/2 left-0 right-0 h-0.5 bg-slate-100 -translate-y-1/2 z-0"></div>
+            <div id="stepper-line" class="absolute top-1/2 left-0 w-0 h-0.5 bg-red-600 -translate-y-1/2 z-0 transition-all duration-300"></div>
+            
+            <div class="flex flex-col items-center gap-1.5 z-10">
+              <div id="step-dot-1" class="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-sm shadow-md transition-all duration-300">1</div>
+              <span id="step-txt-1" class="text-xs font-bold text-red-600">Şirket Adı</span>
+            </div>
+            
+            <div class="flex flex-col items-center gap-1.5 z-10">
+              <div id="step-dot-2" class="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-400 flex items-center justify-center font-bold text-sm transition-all duration-300">2</div>
+              <span id="step-txt-2" class="text-xs font-semibold text-slate-400">Sevk Adresi</span>
+            </div>
+            
+            <div class="flex flex-col items-center gap-1.5 z-10">
+              <div id="step-dot-3" class="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-400 flex items-center justify-center font-bold text-sm transition-all duration-300">3</div>
+              <span id="step-txt-3" class="text-xs font-semibold text-slate-400">Sipariş Listesi</span>
+            </div>
+          </div>
+
+          <!-- Mobil İçin Kompakt Gösterge -->
+          <div class="sm:hidden flex flex-col gap-2">
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Aşama</span>
+              <span id="mobile-step-title" class="text-xs font-bold text-red-600">1 / 3: Şirket Girişi</span>
+            </div>
+            <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div id="mobile-progress-bar" class="w-1/3 h-full bg-red-600 transition-all duration-300"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FORM PANELLERİ -->
+        <div class="bg-white border border-slate-200 rounded-2xl shadow-premium p-5 md:p-8">
+          
+          <!-- HIZLI GEÇİŞ PANELİ (Kayıtlı Veriler Varsa Gösterilir) -->
+          <div id="quick-continue-box" class="hidden mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-slide-in">
+            <div class="flex items-start gap-2.5">
+              <span class="text-xl">💾</span>
+              <div>
+                <h4 class="text-xs font-bold text-red-800 uppercase tracking-wide">Kayıtlı Şirket Profili Bulundu</h4>
+                <p id="quick-profile-desc" class="text-xs text-red-600 mt-0.5">...</p>
+              </div>
+            </div>
+            <button onclick="skipToStep3()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shrink-0 cursor-pointer font-sans">
+              Doğrudan Ürün Girişine Geç ⚡
+            </button>
+          </div>
+
+          <!-- ADIM 1: ŞİRKET/MÜŞTERİ ADI -->
+          <div id="step-panel-1" class="step-panel active">
+            <div class="mb-5">
+              <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-red-50 text-red-600 flex items-center justify-center text-xs font-extrabold">1</span>
+                Şirket veya Müşteri Adı
+              </h3>
+              <p class="text-xs text-slate-400 mt-1">Lütfen siparişi geçen firmanın veya şahsın adını girin.</p>
+            </div>
+
+            <div class="flex flex-col gap-2.5">
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1">
+                Firma / Müşteri Adı <span class="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="cust-company"
+                placeholder="Örn: Battal Aygün İnşaat Ltd. Şti."
+                class="w-full bg-slate-50 border border-slate-200 hover:border-slate-350 focus:border-red-500 text-slate-900 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-red-500/10 focus:outline-none transition-all font-semibold"
+              />
+            </div>
+
+            <div class="mt-8 pt-4 border-t border-slate-100 flex justify-end">
+              <button
+                onclick="goToStep(2)"
+                class="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-750 text-white font-bold rounded-xl text-sm transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-red-600/10 cursor-pointer"
+              >
+                <span>Devam Et</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- ADIM 2: SEVK ADRESİ -->
+          <div id="step-panel-2" class="step-panel">
+            <div class="mb-5">
+              <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-red-50 text-red-600 flex items-center justify-center text-xs font-extrabold">2</span>
+                Teslimat & İletişim Bilgileri
+              </h3>
+              <p class="text-xs text-slate-400 mt-1">Malzemenin sevk edileceği adresi girin veya haritadan konum seçin.</p>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4">
+              <!-- Sevk Adresi -->
+              <div class="flex flex-col gap-2.5">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1">
+                  Sevk Adresi <span class="text-red-500">*</span>
+                </label>
+                <textarea
+                  id="cust-address"
+                  rows="3"
+                  placeholder="Örn: Battal İnşaat Şantiyesi, Merkez Mah. İstasyon Cad. No:45, Kadıköy/İstanbul"
+                  class="w-full bg-slate-50 border border-slate-200 hover:border-slate-350 focus:border-red-500 text-slate-900 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-red-500/10 focus:outline-none transition-all font-medium resize-none"
+                ></textarea>
+                
+                <!-- HARİTA AÇMA BUTONU & KOORDİNAT DURUMU -->
+                <div class="flex flex-col sm:flex-row sm:items-center gap-3 mt-1">
+                  <button
+                    type="button"
+                    onclick="openMapModal()"
+                    class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all hover:scale-[1.02] active:scale-95 shadow cursor-pointer self-start"
+                  >
+                    <span>📍</span> Haritadan Konum Seç
+                  </button>
+                  
+                  <div id="coords-status-badge" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200 self-start">
+                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400" id="coords-dot"></span>
+                    <span id="coords-text">Haritadan konum işaretlenmedi (isteğe bağlı)</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Alıcı / Yetkili -->
+              <div class="flex flex-col gap-2.5">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                  İlgili Kişi / Yetkili
+                </label>
+                <input
+                  type="text"
+                  id="cust-recipient"
+                  placeholder="Örn: Şantiye Şefi Battal"
+                  class="w-full bg-slate-50 border border-slate-200 hover:border-slate-350 focus:border-red-500 text-slate-900 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-red-500/10 focus:outline-none transition-all font-semibold"
+                />
+              </div>
+            </div>
+
+            <div class="mt-8 pt-4 border-t border-slate-100 flex items-center justify-between gap-4">
+              <button
+                onclick="goToStep(1)"
+                class="px-5 py-3 bg-slate-150 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+                <span>Geri</span>
+              </button>
+
+              <button
+                onclick="goToStep(3)"
+                class="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-750 text-white font-bold rounded-xl text-sm transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-red-600/10 cursor-pointer"
+              >
+                <span>Sipariş Listesine Geç</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- ADIM 3: SİPARİŞ LİSTESİ -->
+          <div id="step-panel-3" class="step-panel">
+            
+            <!-- Aktif Müşteri Özet Kartı (Tıklayınca düzenlemeye döner) -->
+            <div onclick="goToStep(1)" class="mb-5 p-3.5 bg-slate-50 border border-slate-200 hover:border-red-200 rounded-xl flex items-center justify-between cursor-pointer transition-colors group">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-red-600 uppercase tracking-wide">Müşteri Profili</span>
+                  <span class="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-semibold uppercase">Kaydedildi</span>
+                </div>
+                <h4 id="summary-company" class="text-sm font-extrabold text-slate-800 mt-1 truncate">...</h4>
+                <p id="summary-address" class="text-xs text-slate-500 mt-0.5 truncate">...</p>
+              </div>
+              <div class="text-slate-400 group-hover:text-red-600 transition-colors pl-3 flex items-center gap-1 shrink-0">
+                <span class="text-[10px] font-bold">Düzenle</span>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-red-50 text-red-600 flex items-center justify-center text-xs font-extrabold">3</span>
+                Sipariş Verilecek Ürünler
+              </h3>
+              <p class="text-xs text-slate-400 mt-1">İstediğiniz ürünleri ekleyip siparişi tamamlayın.</p>
+            </div>
+
+            <!-- Ürün Giriş Alanı -->
+            <div id="order-items-container" class="flex flex-col gap-3 min-h-[150px]">
+              <!-- Dinamik satırlar buraya eklenecek -->
+            </div>
+
+            <!-- Yeni Ürün Ekleme Butonu (Listenin Altında) -->
+            <div class="mt-4 flex justify-end sm:justify-start">
+              <button
+                type="button"
+                onclick="addOrderItem()"
+                class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all hover:scale-[1.02] active:scale-95 cursor-pointer shadow-md w-full sm:w-auto font-sans"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                <span>Yeni Ürün Ekle</span>
+              </button>
+            </div>
+
+            <!-- Aciliyet Seçimi -->
+            <div class="mt-6 pt-5 border-t border-slate-100">
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-2.5">
+                Sipariş Aciliyet Durumu
+              </label>
+              <div class="grid grid-cols-3 gap-2">
+                <button onclick="setUrgency('Normal')" id="urg-normal" class="py-2.5 rounded-xl border text-xs font-bold transition-all bg-red-500/10 border-red-500/30 text-red-650">
+                  🔵 Normal
+                </button>
+                <button onclick="setUrgency('Acil')" id="urg-acil" class="py-2.5 rounded-xl border text-xs font-bold transition-all bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300">
+                  🟠 Acil
+                </button>
+                <button onclick="setUrgency('Çok Acil')" id="urg-cok-acil" class="py-2.5 rounded-xl border text-xs font-bold transition-all bg-red-600/10 border-red-500/30 text-red-600 shadow-sm">
+                  🔴 Çok Acil
+                </button>
+              </div>
+            </div>
+
+            <!-- Gönderme ve Aksiyonlar -->
+            <div class="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-3">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                
+                <!-- Supabase Gönder -->
+                <button
+                  id="btn-submit-db"
+                  onclick="submitOrderToDb()"
+                  class="py-3.5 px-5 bg-red-600 hover:bg-red-750 text-white font-bold rounded-xl shadow-md shadow-red-600/10 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <span>Siparişi Kaydet ve Sisteme Gönder</span>
+                </button>
+
+                <!-- WhatsApp İlet -->
+                <button
+                  id="btn-submit-wa"
+                  onclick="submitOrderToWa()"
+                  class="py-3.5 px-5 bg-white hover:bg-slate-50 text-emerald-600 border border-emerald-500/30 hover:border-emerald-500/50 font-bold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer text-sm shadow-sm"
+                >
+                  <svg class="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.739-1.456L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.97C16.59 2.028 14.108.998 11.48.998 6.046.998 1.62 5.37 1.616 10.8c-.001 1.705.452 3.37 1.309 4.824L1.99 21.097l5.836-1.517zM18.5 14.6c-.3-.15-1.78-.88-2.05-.98-.27-.1-.47-.15-.67.15-.2.3-.77.98-.95 1.18-.18.2-.35.23-.65.08-1.2-.6-2.05-1.05-2.88-2.5-.22-.38.22-.35.63-1.16.07-.15.03-.28-.02-.38-.05-.1-.47-1.13-.64-1.55-.17-.41-.35-.35-.48-.36h-.41c-.13 0-.36.05-.55.25-.19.2-.72.7-.72 1.72 0 1.02.74 2 1.84 3.47 1.1 1.47 2.64 2.37 4.98 3.27.56.22 1 .35 1.34.46.56.18 1.07.15 1.47.09.45-.07 1.78-.73 2.03-1.43.25-.7.25-1.3.17-1.43-.07-.15-.27-.25-.57-.4z"/>
+                  </svg>
+                  <span>WhatsApp ile Sipariş İlet</span>
+                </button>
+              </div>
+
+              <button
+                onclick="goToStep(2)"
+                class="py-3 text-slate-500 hover:text-slate-700 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer mt-2"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+                <span>Teslimat Adresini Düzenle</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SON SİPARİŞLER (Sağ Kısım 1/3 Genişlik) -->
+      <div class="flex flex-col gap-6">
+        
+        <!-- YARDIM & DESTEK KARTI -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-premium">
+          <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <span>💡</span> Nasıl Çalışır?
+          </h3>
+          <ul class="text-xs text-slate-500 mt-3 flex flex-col gap-2.5 list-disc pl-4 leading-relaxed">
+            <li>Şirket adı ve adresinizi bir defa girdikten sonra <b>sistem bunları hatırlar</b>.</li>
+            <li>Sevk Adresini <b>haritadan seçebilirsiniz</b>. Sistem konumunuza göre adresi otomatik yazar.</li>
+            <li>Haritadan konum seçildiğinde araçtaki şoförümüz <b>tek tıkla size yol tarifi alabilir</b>.</li>
+            <li>Sipariş listesini oluşturup gönderdiğinizde depomuza <b>anında sesli uyarıyla düşer</b>.</li>
+            <li>Aşağıdaki tablodan siparişinizin hazırlanma ve sevkiyat durumunu <b>canlı takip edebilirsiniz</b>.</li>
+          </ul>
+        </div>
+
+        <!-- SON SİPARİŞLERİM -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-premium flex flex-col gap-4">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <span>📋</span> Son Siparişlerim
+            </h3>
+            <p class="text-[10px] text-slate-400 mt-0.5">Gönderdiğiniz son taleplerin hazırlık durumları.</p>
+          </div>
+
+          <div class="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-1" id="my-orders-list">
+            <!-- Durumlar dinamik olarak JS ile eklenecek -->
+            <div class="text-center py-6 text-slate-400 text-xs">Henüz sipariş vermediniz.</div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- HARİTA SEÇİM MODALI -->
+    <div id="map-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+      <div class="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-5 shadow-2xl flex flex-col gap-4 animate-slide-in">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-1.5">
+              <span>📍</span> Haritadan Konum Seç
+            </h3>
+            <p class="text-[11px] text-slate-400 mt-0.5">Haritada siparişin teslim edileceği noktaya tıklayın.</p>
+          </div>
+          <button onclick="closeMapModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-650 active:scale-90 transition-all cursor-pointer">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- ARAMA PANELİ -->
+        <div class="flex gap-2">
+          <input type="text" id="map-search-input" placeholder="Mahalle, sokak, cadde veya yer adı yazıp arayın..." 
+            class="flex-1 bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-semibold shadow-sm"
+            onkeypress="if(event.key === 'Enter') searchAddressOnMap();" />
+          <button type="button" onclick="searchAddressOnMap()" 
+            class="px-4 py-2.5 bg-red-600 hover:bg-red-750 text-white text-xs font-bold rounded-xl transition-all shadow-md active:scale-95 cursor-pointer shrink-0">
+            Ara
+          </button>
+        </div>
+
+        <!-- Harita Canvas -->
+        <div id="map-canvas" class="w-full bg-slate-100 rounded-xl border border-slate-200 relative">
+          <!-- Harita buraya çizilecek -->
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+          <!-- Seçilen Adres Önizleme -->
+          <div class="text-xs text-slate-500 flex items-start gap-1 max-w-sm">
+            <span class="shrink-0 text-slate-400">Seçili:</span>
+            <span id="map-preview-address" class="font-bold text-slate-700 italic">Haritada bir yer seçin veya GPS butonuna basın...</span>
+          </div>
+
+          <div class="flex gap-2 shrink-0">
+            <!-- GPS ile Konum Al -->
+            <button
+              type="button"
+              onclick="locateUserGPS()"
+              class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
+              title="Cihaz Konumunu Al"
+            >
+              <span>🧭</span> Konumumu Bul
+            </button>
+            
+            <!-- Konumu Onayla -->
+            <button
+              type="button"
+              onclick="confirmMapLocation()"
+              class="px-5 py-2.5 bg-red-600 hover:bg-red-750 text-white text-xs font-bold rounded-xl shadow-md shadow-red-600/10 active:scale-95 transition-all cursor-pointer"
+            >
+              Konumu Onayla
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="py-6 border-t border-slate-200 text-center text-xs text-slate-400 bg-white mt-12">
+      <p>© 2026 AYG B2B Depo Yönetim Sistemi. Tüm hakları saklıdır.</p>
+    </footer>
+
+    <!-- SİPARİŞ BAŞARILI MODALI -->
+    <div id="success-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+      <div class="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 md:p-8 shadow-2xl text-center flex flex-col items-center gap-5 animate-slide-in">
+        <div class="w-16 h-16 rounded-full bg-red-50 text-red-600 flex items-center justify-center">
+          <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+        </div>
+        <div>
+          <h3 class="text-xl font-extrabold text-slate-900">Sipariş Kaydedildi!</h3>
+          <p class="text-slate-500 text-xs mt-1.5">Sipariş talebiniz sistemimize başarıyla iletildi. Personellerimiz en kısa sürede hazırlayıp sevk edecektir.</p>
+        </div>
+        
+        <div class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left text-xs text-slate-600 flex flex-col gap-2">
+          <div><span class="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Müşteri:</span> <span id="modal-cust-company" class="font-bold text-slate-800"></span></div>
+          <div><span class="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Aciliyet:</span> <span id="modal-urgency" class="font-bold"></span></div>
+          <div><span class="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Malzeme Sayısı:</span> <span id="modal-items-count" class="font-bold text-slate-800"></span></div>
+        </div>
+
+        <button
+          onclick="closeSuccessModal()"
+          class="w-full py-3.5 bg-red-600 hover:bg-red-750 text-white font-bold rounded-xl active:scale-95 transition-all cursor-pointer text-sm shadow-md shadow-red-600/10"
+        >
+          Tamam, Devam Et
+        </button>
+      </div>
+    </div>
+
+    <!-- JAVASCRIPT KODLARI -->
+    <script>
+      // Uygulama Durumu
+      const state = {
+        currentStep: 1,
+        urgency: "Normal",
+        itemsCount: 0,
+        supabaseUrl: "https://fnwikxmspdxamsostbnb.supabase.co",
+        supabaseKey: "sb_publishable_tlsSFNjL-zfH-KUWShqIkQ_H5G97Hvd",
+        supabaseClient: null,
+        myOrderIds: [],
+        
+        // Harita Durumu
+        mapInstance: null,
+        mapMarker: null,
+        selectedLat: null,
+        selectedLng: null,
+        tempLat: null,
+        tempLng: null
+      };
+
+      // Sayfa Yüklendiğinde
+      window.addEventListener("DOMContentLoaded", () => {
+        loadSettingsFromStorage();
+        initSupabase();
+        
+        // Form verilerini localStorage'dan çek
+        const hasSavedProfile = loadProfileDetails();
+        
+        // İlk sipariş kalemi
+        addOrderItem();
+        
+        // Kayıtlı profil varsa sihirbazda hızlı devam etme kutusunu göster
+        if (hasSavedProfile) {
+          showQuickContinue();
+        }
+
+        // Son siparişlerimi getir
+        loadMyOrders();
+        setInterval(loadMyOrders, 20000); // 20 saniyede bir durumları güncelle
+        
+        // Input dinleyicileri (değiştikçe kaydetsin)
+        document.getElementById("cust-company").addEventListener("input", saveProfileDetails);
+        document.getElementById("cust-address").addEventListener("input", saveProfileDetails);
+        document.getElementById("cust-recipient").addEventListener("input", saveProfileDetails);
+      });
+
+      // Profil Bilgilerini localStorage'dan Yükle
+      function loadProfileDetails() {
+        const company = localStorage.getItem("ayg-cust-company");
+        const address = localStorage.getItem("ayg-cust-address");
+        const recipient = localStorage.getItem("ayg-cust-recipient");
+        
+        const savedLat = localStorage.getItem("ayg-cust-lat");
+        const savedLng = localStorage.getItem("ayg-cust-lng");
+
+        if (company) document.getElementById("cust-company").value = company;
+        if (address) document.getElementById("cust-address").value = address;
+        if (recipient) document.getElementById("cust-recipient").value = recipient;
+
+        if (savedLat && savedLng) {
+          state.selectedLat = parseFloat(savedLat);
+          state.selectedLng = parseFloat(savedLng);
+          updateCoordsBadge(true);
+        }
+
+        return !!(company && address);
+      }
+
+      // Profil Bilgilerini localStorage'a Kaydet
+      function saveProfileDetails() {
+        const company = document.getElementById("cust-company").value.trim();
+        const address = document.getElementById("cust-address").value.trim();
+        const recipient = document.getElementById("cust-recipient").value.trim();
+
+        localStorage.setItem("ayg-cust-company", company);
+        localStorage.setItem("ayg-cust-address", address);
+        localStorage.setItem("ayg-cust-recipient", recipient);
+        
+        if (state.selectedLat && state.selectedLng) {
+          localStorage.setItem("ayg-cust-lat", state.selectedLat);
+          localStorage.setItem("ayg-cust-lng", state.selectedLng);
+        }
+      }
+
+      // Hızlı Devam Kutusunu Göster
+      function showQuickContinue() {
+        const company = localStorage.getItem("ayg-cust-company") || "";
+        const address = localStorage.getItem("ayg-cust-address") || "";
+        
+        const box = document.getElementById("quick-continue-box");
+        const desc = document.getElementById("quick-profile-desc");
+        
+        desc.textContent = `${company} (${address.substring(0, 40)}...)`;
+        box.classList.remove("hidden");
+      }
+
+      // Hızlı Geçiş: Doğrudan 3. Adıma Atla
+      function skipToStep3() {
+        if (loadProfileDetails()) {
+          goToStep(3);
+          document.getElementById("quick-continue-box").classList.add("hidden");
+          showToast("💾 Kayıtlı bilgileriniz başarıyla yüklendi.", "success");
+        }
+      }
+
+      // Sihirbaz Adım Değiştirici (Wizard logic)
+      function goToStep(stepNum) {
+        // Validasyon
+        if (stepNum === 2 && state.currentStep === 1) {
+          const comp = document.getElementById("cust-company").value.trim();
+          if (!comp) {
+            showToast("Lütfen Şirket / Müşteri Adı girin!", "warning");
+            return;
+          }
+        }
+        
+        if (stepNum === 3 && state.currentStep === 2) {
+          const addr = document.getElementById("cust-address").value.trim();
+          if (!addr) {
+            showToast("Lütfen Sevk Adresi girin!", "warning");
+            return;
+          }
+        }
+
+        // Özet güncelle (Adım 3'e geçiyorsak)
+        if (stepNum === 3) {
+          const comp = document.getElementById("cust-company").value.trim();
+          const addr = document.getElementById("cust-address").value.trim();
+          const rec = document.getElementById("cust-recipient").value.trim();
+          
+          document.getElementById("summary-company").textContent = comp;
+          
+          let summaryAddressText = addr;
+          if (state.selectedLat && state.selectedLng) summaryAddressText = "📍 Konum İşaretlendi | " + summaryAddressText;
+          if (rec) summaryAddressText += " | Yetkili: " + rec;
+          
+          document.getElementById("summary-address").textContent = summaryAddressText;
+        }
+
+        // Adım Değişimi
+        document.querySelectorAll(".step-panel").forEach(p => p.classList.remove("active"));
+        document.getElementById(`step-panel-${stepNum}`).classList.add("active");
+        
+        state.currentStep = stepNum;
+
+        // Steppers Görsel Güncellemesi (PC)
+        for (let i = 1; i <= 3; i++) {
+          const dot = document.getElementById(`step-dot-${i}`);
+          const txt = document.getElementById(`step-txt-${i}`);
+          if (!dot || !txt) continue;
+
+          if (i < stepNum) {
+            // Tamamlanmış adım
+            dot.className = "w-8 h-8 rounded-full border-2 border-red-600 bg-white text-red-600 flex items-center justify-center font-bold text-sm transition-all duration-300 shadow-sm";
+            dot.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>`;
+            txt.className = "text-xs font-bold text-red-600";
+          } else if (i === stepNum) {
+            // Aktif adım
+            dot.className = "w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-sm shadow-md transition-all duration-300";
+            dot.innerHTML = i;
+            txt.className = "text-xs font-bold text-red-600";
+          } else {
+            // Gelecek adım
+            dot.className = "w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-400 flex items-center justify-center font-bold text-sm transition-all duration-300";
+            dot.innerHTML = i;
+            txt.className = "text-xs font-semibold text-slate-400";
+          }
+        }
+
+        // Stepper Arasındaki Çizgi
+        const line = document.getElementById("stepper-line");
+        if (line) {
+          if (stepNum === 1) line.style.width = "0%";
+          else if (stepNum === 2) line.style.width = "50%";
+          else if (stepNum === 3) line.style.width = "100%";
+        }
+
+        // Mobil Başlık ve İlerleme Çubuğu Güncellemesi
+        const mobileTitle = document.getElementById("mobile-step-title");
+        const mobileBar = document.getElementById("mobile-progress-bar");
+        if (mobileTitle && mobileBar) {
+          if (stepNum === 1) {
+            mobileTitle.textContent = "1 / 3: Şirket Girişi";
+            mobileBar.style.width = "33.3%";
+          } else if (stepNum === 2) {
+            mobileTitle.textContent = "2 / 3: Teslimat Adresi";
+            mobileBar.style.width = "66.6%";
+          } else if (stepNum === 3) {
+            mobileTitle.textContent = "3 / 3: Ürün Girişi";
+            mobileBar.style.width = "100%";
+          }
+        }
+
+        // Kayıtlı profil uyarısını Adım 1 dışındayken gizle
+        if (stepNum !== 1) {
+          document.getElementById("quick-continue-box").classList.add("hidden");
+        }
+      }
+
+      // Supabase Bağlantısı Kur
+      function initSupabase() {
+        const aygState = localStorage.getItem("ayg-state");
+        if (aygState) {
+          try {
+            const parsed = JSON.parse(aygState);
+            if (parsed.supabaseUrl) state.supabaseUrl = parsed.supabaseUrl;
+            if (parsed.supabaseKey) state.supabaseKey = parsed.supabaseKey;
+          } catch(e) {}
+        }
+
+        const statusDot = document.getElementById("status-dot");
+        const statusText = document.getElementById("status-text");
+
+        try {
+          if (typeof supabase !== "undefined" && typeof supabase.createClient === "function") {
+            state.supabaseClient = supabase.createClient(state.supabaseUrl, state.supabaseKey);
+            statusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+            statusText.textContent = "Sisteme Bağlı";
+          } else {
+            throw new Error("Supabase kütüphanesi yok.");
+          }
+        } catch (e) {
+          console.error(e);
+          statusDot.className = "w-2.5 h-2.5 rounded-full bg-amber-500";
+          statusText.textContent = "Sadece WhatsApp";
+          document.getElementById("btn-submit-db").disabled = true;
+          document.getElementById("btn-submit-db").classList.add("opacity-50", "cursor-not-allowed");
+        }
+      }
+
+      // localStorage'dan Son Sipariş ID'lerini Yükle
+      function loadSettingsFromStorage() {
+        const myOrders = localStorage.getItem("ayg-my-orders");
+        if (myOrders) {
+          try {
+            state.myOrderIds = JSON.parse(myOrders);
+          } catch (e) {
+            state.myOrderIds = [];
+          }
+        }
+      }
+
+      // Gönderilen Sipariş ID'sini Kaydet
+      function saveSentOrderId(id) {
+        state.myOrderIds.unshift(id);
+        if (state.myOrderIds.length > 25) state.myOrderIds.pop();
+        localStorage.setItem("ayg-my-orders", JSON.stringify(state.myOrderIds));
+        loadMyOrders();
+      }
+
+      // Yeni Ürün Giriş Satırı Ekle
+      function addOrderItem(name = "", qty = 1, unit = "adet") {
+        state.itemsCount++;
+        const id = `item-row-${state.itemsCount}`;
+        const container = document.getElementById("order-items-container");
+        
+        const div = document.createElement("div");
+        div.className = "flex flex-col md:flex-row gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm animate-slide-in relative group hover:border-slate-300 transition-colors";
+        div.id = id;
+        div.innerHTML = `
+          <!-- Ürün Adı Girişi -->
+          <div class="flex-1">
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wide block md:hidden mb-1">Malzeme Adı</label>
+            <input type="text" placeholder="Örn: 12'lik İnşaat Demiri veya Çimento" 
+              class="w-full bg-slate-50 border border-slate-200 focus:border-red-500 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none transition-all focus:ring-4 focus:ring-red-500/5 font-semibold" 
+              id="${id}-name" value="${name}" />
+          </div>
+
+          <div class="flex items-center justify-between gap-3">
+            <!-- Birim Seçimi -->
+            <div class="flex-1 md:w-28 shrink-0">
+              <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wide block md:hidden mb-1 font-semibold">Birim</label>
+              <select 
+                class="w-full bg-slate-50 border border-slate-200 focus:border-red-500 rounded-lg px-2 py-2 text-xs text-slate-600 font-bold focus:outline-none transition-all cursor-pointer" 
+                id="${id}-unit">
+                <option value="adet" ${unit === "adet" ? "selected" : ""}>Adet</option>
+                <option value="kilo" ${unit === "kilo" ? "selected" : ""}>Kilo</option>
+                <option value="çuval" ${unit === "çuval" ? "selected" : ""}>Çuval</option>
+                <option value="m³" ${unit === "m³" ? "selected" : ""}>m³ (Metreküp)</option>
+                <option value="kutu" ${unit === "kutu" ? "selected" : ""}>Kutu</option>
+                <option value="paket" ${unit === "paket" ? "selected" : ""}>Paket</option>
+                <option value="metre" ${unit === "metre" ? "selected" : ""}>Metre</option>
+                <option value="litre" ${unit === "litre" ? "selected" : ""}>Litre</option>
+              </select>
+            </div>
+
+            <!-- Miktar Kontrolleri -->
+            <div class="shrink-0">
+              <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wide block md:hidden mb-1">Miktar</label>
+              <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5 border border-slate-200">
+                <button onclick="adjustLocalQty('${id}', -1)" type="button"
+                  class="w-8 h-8 bg-white hover:bg-slate-50 text-slate-500 border border-slate-200 rounded-md hover:scale-95 active:scale-90 transition-all font-black text-base flex items-center justify-center cursor-pointer select-none">
+                  −
+                </button>
+                <input type="number" placeholder="Miktar" min="1"
+                  class="w-12 bg-transparent text-center text-sm text-slate-800 font-extrabold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                  id="${id}-qty" value="${qty}" />
+                <button onclick="adjustLocalQty('${id}', 1)" type="button"
+                  class="w-8 h-8 bg-white hover:bg-slate-50 text-slate-500 border border-slate-200 rounded-md hover:scale-95 active:scale-90 transition-all font-black text-base flex items-center justify-center cursor-pointer select-none">
+                  +
+                </button>
+              </div>
+            </div>
+
+            <!-- Silme Butonu -->
+            <div class="self-end md:self-center">
+              <label class="text-[10px] font-bold text-transparent block md:hidden mb-1">Sil</label>
+              <button onclick="removeLocalItem('${id}')" type="button"
+                class="text-slate-400 hover:text-red-650 hover:bg-red-50 p-2 rounded-lg active:scale-90 transition-all cursor-pointer shrink-0"
+                title="Ürünü Çıkar">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      }
+
+      // Miktar Değişimi
+      function adjustLocalQty(rowId, delta) {
+        const qtyInput = document.getElementById(`${rowId}-qty`);
+        if (qtyInput) {
+          let val = parseInt(qtyInput.value) || 1;
+          val = Math.max(1, val + delta);
+          qtyInput.value = val;
+        }
+      }
+
+      // Satır Çıkarma
+      function removeLocalItem(rowId) {
+        const el = document.getElementById(rowId);
+        if (el) {
+          const allRows = document.querySelectorAll('[id^="item-row-"]');
+          if (allRows.length <= 1) {
+            showToast("En az bir ürün eklemelisiniz!", "warning");
+            return;
+          }
+          el.classList.add("opacity-0", "translate-y-2");
+          setTimeout(() => el.remove(), 200);
+        }
+      }
+
+      // Aciliyet Değiştirme
+      function setUrgency(urg) {
+        state.urgency = urg;
+        
+        const btnNormal = document.getElementById("urg-normal");
+        const btnAcil = document.getElementById("urg-acil");
+        const btnCokAcil = document.getElementById("urg-cok-acil");
+        
+        [btnNormal, btnAcil, btnCokAcil].forEach(btn => {
+          btn.className = "py-2.5 rounded-xl border text-xs font-bold transition-all bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300";
+        });
+        
+        if (urg === "Normal") {
+          btnNormal.className = "py-2.5 rounded-xl border text-xs font-bold transition-all bg-red-500/10 border-red-500/30 text-red-655";
+        } else if (urg === "Acil") {
+          btnAcil.className = "py-2.5 rounded-xl border text-xs font-bold transition-all bg-orange-500/10 border-orange-500/30 text-orange-600";
+        } else if (urg === "Çok Acil") {
+          btnCokAcil.className = "py-2.5 rounded-xl border text-xs font-bold transition-all bg-red-600/10 border-red-500/30 text-red-600 shadow-sm";
+        }
+      }
+
+      // =============================================
+      // HARİTA YÖNETİMİ (Leaflet)
+      // =============================================
+      
+      // Haritada Adres Ara (OSM Nominatim)
+      async function searchAddressOnMap() {
+        const queryInput = document.getElementById("map-search-input");
+        const query = queryInput.value.trim();
+        
+        if (!query) {
+          showToast("Lütfen aranacak adresi yazın!", "warning");
+          return;
+        }
+
+        showToast("Adres aranıyor...", "info");
+
+        try {
+          const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=tr`);
+          if (!response.ok) throw new Error("Arama API hatası");
+          
+          const data = await response.json();
+          
+          if (data && data.length > 0) {
+            const lat = parseFloat(data[0].lat);
+            const lng = parseFloat(data[0].lon);
+            
+            // Haritada odaklan ve marker yerleştir
+            setMapMarker(lat, lng);
+            
+            if (state.mapInstance) {
+              state.mapInstance.setView([lat, lng], 16);
+            }
+            
+            // Alttaki önizleme adresini güncelle
+            reverseGeocode(lat, lng);
+            showToast("🔍 Adres bulundu ve haritada odaklandı.", "success");
+          } else {
+            showToast("Aradığınız adres bulunamadı. Lütfen daha belirgin yazın.", "warning");
+          }
+        } catch (e) {
+          console.error("Adres arama hatası:", e);
+          showToast("Adres aranırken bir sorun oluştu!", "error");
+        }
+      }
+
+      // Harita Modalı Aç
+      function openMapModal() {
+        document.getElementById("map-modal").classList.remove("hidden");
+        
+        // Haritayı asenkron olarak modal açıldıktan sonra ilklendirmeliyiz (div boyutları otursun diye)
+        setTimeout(() => {
+          initLeafletMap();
+        }, 100);
+      }
+
+      // Harita Modalı Kapat
+      function closeMapModal() {
+        document.getElementById("map-modal").classList.add("hidden");
+      }
+
+      // Leaflet Haritayı Başlat
+      function initLeafletMap() {
+        const defaultLat = 41.0082; // İstanbul Varsayılan
+        const defaultLng = 28.9784;
+
+        const startLat = state.tempLat || state.selectedLat || defaultLat;
+        const startLng = state.tempLng || state.selectedLng || defaultLng;
+
+        if (!state.mapInstance) {
+          // Harita nesnesi yoksa oluştur
+          state.mapInstance = L.map("map-canvas").setView([startLat, startLng], 12);
+
+          // OpenStreetMap Tile Katmanı Ekle
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          }).addTo(state.mapInstance);
+
+          // Haritada tıklanan yere pin koy
+          state.mapInstance.on("click", (e) => {
+            setMapMarker(e.latlng.lat, e.latlng.lng);
+            reverseGeocode(e.latlng.lat, e.latlng.lng);
+          });
+        } else {
+          // Harita zaten varsa sadece görünümü tazele (Leaflet bug'larını önlemek için)
+          state.mapInstance.invalidateSize();
+          state.mapInstance.setView([startLat, startLng], 13);
+        }
+
+        // Eğer önceden seçili konum varsa marker koy
+        if (state.selectedLat && state.selectedLng) {
+          setMapMarker(state.selectedLat, state.selectedLng);
+          state.tempLat = state.selectedLat;
+          state.tempLng = state.selectedLng;
+        } else {
+          // Konum seçilmediyse şansımızı GPS ile deneyelim
+          locateUserGPS(false); // sessizce bulmayı dene toast atma
+        }
+      }
+
+      // Haritaya Pin (Marker) Koy
+      function setMapMarker(lat, lng) {
+        state.tempLat = lat;
+        state.tempLng = lng;
+
+        if (state.mapMarker) {
+          state.mapMarker.setLatLng([lat, lng]);
+        } else {
+          state.mapMarker = L.marker([lat, lng], { draggable: true }).addTo(state.mapInstance);
+          
+          // Marker sürüklendiğinde de adresi güncelle
+          state.mapMarker.on("dragend", (e) => {
+            const position = e.target.getLatLng();
+            setMapMarker(position.lat, position.lng);
+            reverseGeocode(position.lat, position.lng);
+          });
+        }
+        
+        state.mapInstance.panTo([lat, lng]);
+      }
+
+      // GPS ile Kullanıcı Konumunu Al
+      function locateUserGPS(notify = true) {
+        if (!navigator.geolocation) {
+          if (notify) showToast("Tarayıcınız konum bilgisini desteklemiyor.", "error");
+          return;
+        }
+
+        if (notify) showToast("Konumunuz alınıyor...", "info");
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            
+            setMapMarker(lat, lng);
+            reverseGeocode(lat, lng);
+            
+            if (state.mapInstance) {
+              state.mapInstance.setView([lat, lng], 16);
+            }
+            if (notify) showToast("📍 Konumunuz başarıyla haritada işaretlendi.", "success");
+          },
+          (error) => {
+            console.error("GPS Hatası:", error);
+            if (notify) showToast("GPS konumunuz alınamadı. Haritadan elle seçebilirsiniz.", "warning");
+          },
+          { enableHighAccuracy: true, timeout: 5000 }
+        );
+      }
+
+      // Koordinattan Adres Çekme (OpenStreetMap Nominatim Reverse Geocoding)
+      async function reverseGeocode(lat, lng) {
+        const previewEl = document.getElementById("map-preview-address");
+        previewEl.innerHTML = `<span class="animate-pulse">Adres sorgulanıyor...</span>`;
+
+        try {
+          const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
+            headers: {
+              "Accept-Language": "tr-TR,tr;q=0.9"
+            }
+          });
+          
+          if (!response.ok) throw new Error("API hatası");
+          const data = await response.json();
+          
+          if (data && data.display_name) {
+            // Düzgün bir adres formatı oluştur
+            let addr = data.display_name;
+            
+            // Çok uzun OSM adresini biraz sadeleştirelim
+            if (data.address) {
+              const a = data.address;
+              const road = a.road || a.street || "";
+              const suburb = a.suburb || a.neighbourhood || "";
+              const town = a.town || a.city_district || "";
+              const city = a.city || a.province || "";
+              
+              if (road || suburb) {
+                addr = `${suburb ? suburb + ' Mah. ' : ''}${road ? road + ' Sk. ' : ''}${town ? town + '/' : ''}${city}`;
+              }
+            }
+
+            previewEl.textContent = addr;
+            previewEl.dataset.fullAddress = addr;
+          } else {
+            previewEl.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+          }
+        } catch (e) {
+          console.error("Adres sorgulanamadı:", e);
+          previewEl.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        }
+      }
+
+      // Harita Konumunu Onayla
+      function confirmMapLocation() {
+        if (!state.tempLat || !state.tempLng) {
+          showToast("Lütfen harita üzerinde bir yer seçin veya GPS butonuna tıklayın!", "warning");
+          return;
+        }
+
+        state.selectedLat = state.tempLat;
+        state.selectedLng = state.tempLng;
+
+        // Seçilen adresi adres kutusuna yaz
+        const previewEl = document.getElementById("map-preview-address");
+        const detectedAddress = previewEl.dataset.fullAddress || previewEl.textContent;
+        
+        if (detectedAddress && !detectedAddress.startsWith("Haritada bir yer") && !detectedAddress.startsWith("Adres sorgu")) {
+          document.getElementById("cust-address").value = detectedAddress;
+        }
+
+        // Değişiklikleri kaydet
+        saveProfileDetails();
+        updateCoordsBadge(true);
+        closeMapModal();
+        showToast("📍 Konumunuz başarıyla sevk adresine eklendi.", "success");
+      }
+
+      // Konum Rozeti Görünümünü Güncelle
+      function updateCoordsBadge(hasCoords) {
+        const badge = document.getElementById("coords-status-badge");
+        const dot = document.getElementById("coords-dot");
+        const text = document.getElementById("coords-text");
+
+        if (hasCoords && state.selectedLat && state.selectedLng) {
+          badge.className = "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-red-50 text-red-600 border border-red-200 self-start";
+          dot.className = "w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse";
+          text.innerHTML = `Konum Seçildi ✓ (${state.selectedLat.toFixed(4)}, ${state.selectedLng.toFixed(4)})`;
+        } else {
+          badge.className = "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200 self-start";
+          dot.className = "w-1.5 h-1.5 rounded-full bg-slate-400";
+          text.textContent = "Haritadan konum işaretlenmedi (isteğe bağlı)";
+        }
+      }
+
+      // Form Verilerini Topla ve Sipariş Nesnesini Oluştur
+      function gatherOrderData() {
+        const companyName = document.getElementById("cust-company").value.trim();
+        const address = document.getElementById("cust-address").value.trim();
+        const recipient = document.getElementById("cust-recipient").value.trim() || "Genel";
+        
+        if (!companyName) {
+          showToast("Lütfen Şirket / Müşteri Adı girin!", "error");
+          goToStep(1);
+          return null;
+        }
+
+        if (!address) {
+          showToast("Lütfen Sevk Adresi girin!", "error");
+          goToStep(2);
+          return null;
+        }
+
+        const rows = document.querySelectorAll('[id^="item-row-"]');
+        const items = [];
+        for (const row of rows) {
+          const nameEl = document.getElementById(`${row.id}-name`);
+          const qtyEl = document.getElementById(`${row.id}-qty`);
+          const unitEl = document.getElementById(`${row.id}-unit`);
+          
+          if (nameEl && qtyEl) {
+            const name = nameEl.value.trim();
+            const qty = parseInt(qtyEl.value) || 1;
+            const unit = unitEl ? unitEl.value : "adet";
+            
+            if (name) {
+              items.push({
+                product_name: name,
+                requested_quantity: qty,
+                fulfilled_quantity: qty,
+                unit: unit,
+                checked: false
+              });
+            }
+          }
+        }
+
+        if (items.length === 0) {
+          showToast("Lütfen sipariş listesine en az bir malzeme adı yazın!", "error");
+          return null;
+        }
+
+        // Son bilgileri localStorage'a kalıcı kaydet
+        saveProfileDetails();
+
+        // Müşteri bilgisi ve adresi birleştirilerek orders tablosundaki 'customer_address' alanına yazılır.
+        const formattedAddress = `${companyName} [Adres: ${address}]`;
+
+        return {
+          id: generateId(),
+          customer_address: formattedAddress,
+          recipient: recipient,
+          urgency: state.urgency,
+          status: "Bekliyor",
+          created_by: "Müşteri",
+          created_at: new Date().toISOString(),
+          picked_by: null,
+          items: items,
+          
+          // Koordinatları Supabase orders şemasına uygun şekilde ekle
+          destination_lat: state.selectedLat || null,
+          destination_lng: state.selectedLng || null
+        };
+      }
+
+      // Siparişi Supabase'e Kaydet
+      async function submitOrderToDb() {
+        const orderData = gatherOrderData();
+        if (!orderData) return;
+
+        if (!state.supabaseClient) {
+          showToast("Bulut bağlantısı kurulamadı. Siparişi WhatsApp ile göndermeyi deneyin.", "error");
+          return;
+        }
+
+        const btn = document.getElementById("btn-submit-db");
+        const originalText = btn.innerHTML;
+        btn.innerHTML = `<span class="animate-pulse">Kaydediliyor...</span>`;
+        btn.disabled = true;
+
+        try {
+          const { error } = await state.supabaseClient
+            .from("orders")
+            .insert([orderData]);
+
+          if (error) throw error;
+
+          // Son Sipariş ID'sini yerel hafızaya ekle
+          saveSentOrderId(orderData.id);
+
+          // Başarı modalı aç
+          showSuccessModal(orderData);
+          clearOrderForm();
+          
+          // Tekrar ilk adıma dön
+          goToStep(1);
+        } catch (e) {
+          console.error("Supabase sipariş insert hatası:", e);
+          showToast("Sipariş veritabanına kaydedilemedi!", "error");
+        } finally {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+        }
+      }
+
+      // Siparişi WhatsApp ile Gönder
+      function submitOrderToWa() {
+        const orderData = gatherOrderData();
+        if (!orderData) return;
+
+        const company = document.getElementById("cust-company").value.trim();
+        const address = document.getElementById("cust-address").value.trim();
+
+        let msg = `*🆕 AYG B2B YENİ SIPARIŞ TALEBI*\n`;
+        msg += `-----------------------------\n`;
+        msg += `🏢 *Firma/Müşteri:* ${company}\n`;
+        msg += `📍 *Sevk Adresi:* ${address}\n`;
+        if (orderData.destination_lat && orderData.destination_lng) {
+          msg += `🗺️ *Konum Konumu (Harita):* https://www.google.com/maps/search/?api=1&query=${orderData.destination_lat},${orderData.destination_lng}\n`;
+        }
+        if (orderData.recipient && orderData.recipient !== "Genel") msg += `👤 *Yetkili:* ${orderData.recipient}\n`;
+        msg += `🚨 *Aciliyet:* ${orderData.urgency === "Çok Acil" ? "🔴 Çok Acil" : orderData.urgency === "Acil" ? "🟠 Acil" : "🔵 Normal"}\n`;
+        msg += `-----------------------------\n`;
+        msg += `📦 *SIPARIŞ LISTESI:*\n`;
+        
+        orderData.items.forEach((item, idx) => {
+          msg += `${idx + 1}. ${item.product_name} - *${item.requested_quantity} ${item.unit}*\n`;
+        });
+        msg += `-----------------------------\n`;
+        msg += `⏱️ _Tarih: ${new Date().toLocaleDateString("tr-TR")} ${new Date().toLocaleTimeString("tr-TR")}_`;
+
+        const encodedMsg = encodeURIComponent(msg);
+        const waUrl = `https://api.whatsapp.com/send?text=${encodedMsg}`;
+        
+        if (state.supabaseClient) {
+          state.supabaseClient.from("orders").insert([orderData]).then(({ error }) => {
+            if (!error) saveSentOrderId(orderData.id);
+          });
+        }
+
+        window.open(waUrl, "_blank");
+        showToast("📱 WhatsApp uygulamasına yönlendiriliyorsunuz...", "success");
+      }
+
+      // Sipariş formunu temizle
+      function clearOrderForm() {
+        document.getElementById("order-items-container").innerHTML = "";
+        state.itemsCount = 0;
+        addOrderItem();
+      }
+
+      // Başarı Modalı Aç
+      function showSuccessModal(order) {
+        const company = document.getElementById("cust-company").value.trim();
+        document.getElementById("modal-cust-company").textContent = company;
+        
+        const urgEl = document.getElementById("modal-urgency");
+        urgEl.textContent = order.urgency;
+        if (order.urgency === "Çok Acil") {
+          urgEl.className = "font-bold text-red-600 animate-pulse";
+        } else if (order.urgency === "Acil") {
+          urgEl.className = "font-bold text-orange-500";
+        } else {
+          urgEl.className = "font-bold text-slate-700";
+        }
+
+        document.getElementById("modal-items-count").textContent = `${order.items.length} kalem malzeme`;
+        document.getElementById("success-modal").classList.remove("hidden");
+      }
+
+      // Başarı Modalı Kapat
+      function closeSuccessModal() {
+        document.getElementById("success-modal").classList.add("hidden");
+      }
+
+      // Son Sipariş Durumlarını Çek
+      async function loadMyOrders() {
+        if (!state.supabaseClient || state.myOrderIds.length === 0) return;
+
+        try {
+          const { data, error } = await state.supabaseClient
+            .from("orders")
+            .select("id, created_at, urgency, status, items, destination_lat, destination_lng")
+            .in("id", state.myOrderIds)
+            .order("created_at", { ascending: false });
+
+          if (error) throw error;
+
+          const listContainer = document.getElementById("my-orders-list");
+          if (!data || data.length === 0) {
+            listContainer.innerHTML = `<div class="text-center py-6 text-slate-400 text-xs">Henüz sipariş vermediniz.</div>`;
+            return;
+          }
+
+          listContainer.innerHTML = data.map(o => {
+            const date = new Date(o.created_at).toLocaleDateString("tr-TR", {
+              day: "numeric",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit"
+            });
+            
+            const itemsText = o.items.map(i => `${i.product_name} (${i.requested_quantity} ${i.unit || "adet"})`).join(", ");
+            
+            // Status Renkleri
+            let badgeStyle = "bg-slate-100 border-slate-200 text-slate-500";
+            let statusLabel = o.status;
+            
+            if (o.status === "Bekliyor") {
+              badgeStyle = "bg-slate-100 border-slate-200 text-slate-500";
+              statusLabel = "Sırada ⏳";
+            } else if (o.status === "Hazırlanıyor") {
+              badgeStyle = "bg-amber-100 border-amber-200 text-amber-600 animate-pulse";
+              statusLabel = "Hazırlanıyor 📦";
+            } else if (o.status === "Tamamlandı") {
+              badgeStyle = "bg-indigo-50 border-indigo-250 text-indigo-600";
+              statusLabel = "Yola Çıkacak 🚛";
+            } else if (o.status === "Yolda") {
+              badgeStyle = "bg-blue-100 border-blue-200 text-blue-600";
+              statusLabel = "Yolda 🚚";
+            } else if (o.status === "Teslim Edildi") {
+              badgeStyle = "bg-emerald-100 border-emerald-200 text-emerald-600";
+              statusLabel = "Teslim Edildi ✅";
+            }
+
+            const isCokAcil = o.urgency === "Çok Acil";
+            const urgBadge = isCokAcil ? `<span class="bg-red-100 border border-red-200 text-red-600 text-[9px] px-1 py-0.5 rounded font-black">ACİL</span>` : "";
+            
+            // Harita Pini Göstergesi
+            const hasCoordsBadge = (o.destination_lat && o.destination_lng) 
+              ? `<span class="text-xs" title="Harita konumu eklendi">📍</span>` 
+              : "";
+
+            return `
+              <div class="p-3 bg-slate-50 hover:bg-slate-100/50 border border-slate-200 rounded-xl transition-all shadow-sm flex flex-col gap-2">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-1">
+                    <span class="text-[10px] text-slate-400 font-bold">${date}</span>
+                    ${hasCoordsBadge}
+                  </div>
+                  <div class="flex items-center gap-1">
+                    ${urgBadge}
+                    <span class="px-2 py-0.5 border text-[9px] font-extrabold rounded-full ${badgeStyle}">
+                      ${statusLabel}
+                    </span>
+                  </div>
+                </div>
+                <p class="text-xs text-slate-700 font-semibold line-clamp-2 leading-relaxed" title="${itemsText}">${itemsText}</p>
+              </div>
+            `;
+          }).join("");
+
+        } catch (e) {
+          console.error("Son sipariş durumları çekilemedi:", e);
+        }
+      }
+
+      // Benzersiz ID Üretici
+      function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+      }
+
+      // Toast Bildirimi Göster
+      function showToast(message, type = "info") {
+        const container = document.getElementById("toast-container");
+        const toast = document.createElement("div");
+        
+        let bgClass = "bg-white border-slate-200 text-slate-700 shadow-lg";
+        let icon = "ℹ️";
+        
+        if (type === "success") {
+          bgClass = "bg-white border-emerald-200 text-emerald-600 shadow-md shadow-emerald-500/5";
+          icon = "✅";
+        } else if (type === "error") {
+          bgClass = "bg-white border-red-200 text-red-600 shadow-md shadow-red-500/5";
+          icon = "❌";
+        } else if (type === "warning") {
+          bgClass = "bg-white border-amber-200 text-amber-600 shadow-md shadow-amber-500/5";
+          icon = "⚠️";
+        }
+
+        toast.className = `p-4 rounded-xl border text-xs font-bold flex items-center gap-2.5 shadow-premium transition-all duration-300 transform translate-y-2 opacity-0 ${bgClass}`;
+        toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+        
+        container.appendChild(toast);
+        
+        requestAnimationFrame(() => {
+          toast.classList.remove("translate-y-2", "opacity-0");
+        });
+
+        setTimeout(() => {
+          toast.classList.add("translate-y-[-10px]", "opacity-0");
+          setTimeout(() => toast.remove(), 300);
+        }, 3500);
+      }
+    </script>
+  </body>
+</html>

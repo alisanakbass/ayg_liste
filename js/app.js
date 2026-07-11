@@ -62,6 +62,17 @@ function initSupabaseRealtime() {
         if (payload.eventType === "INSERT") {
           speakText("Yeni sipariş oluşturuldu.");
           showToast("🔔 Yeni bir sipariş geldi!", "success");
+          playNotificationSound();
+          
+          // Tarayıcı Arka Plan Bildirimi
+          if ("Notification" in window && Notification.permission === "granted") {
+            const companyName = payload.new.customer_address.split(" [Adres:")[0] || "Müşteri";
+            new Notification("🔔 Yeni AYG Siparişi!", {
+              body: `${companyName} yeni bir sipariş oluşturdu.`,
+              icon: "icon-192.png",
+              tag: payload.new.id
+            });
+          }
         } else if (payload.eventType === "UPDATE") {
           const oldRecord = payload.old;
           const newRecord = payload.new;
@@ -112,7 +123,7 @@ async function syncWithSupabase(triggerUI = true) {
     // Profilleri çek
     const { data: dbProfiles, error: profilesErr } = await supabaseClient
       .from("profiles")
-      .select("name");
+      .select("name, is_admin");
 
     if (profilesErr) throw profilesErr;
 
@@ -130,6 +141,7 @@ async function syncWithSupabase(triggerUI = true) {
     // State'i güncelle
     state.orders = dbOrders || [];
     state.profiles = (dbProfiles || []).map(p => p.name);
+    state.adminProfiles = (dbProfiles || []).filter(p => p.is_admin).map(p => p.name);
     state.vehicles = dbVehicles || [];
     
     // Varsayılan profilleri koru (eğer veritabanı tamamen boşsa ve yerel moddaysak)
@@ -155,8 +167,8 @@ async function syncWithSupabase(triggerUI = true) {
 }
 
 function switchTab(tab) {
-  if (tab === "admin" && state.activeUser !== "Admin") {
-    showToast("Yönetici paneline sadece Süper Admin (Admin) erişebilir!", "error");
+  if (tab === "admin" && !isAdminUser()) {
+    showToast("Yönetici paneline sadece Yöneticiler erişebilir!", "error");
     return;
   }
   
@@ -279,6 +291,19 @@ async function init() {
   loadState();
   initBroadcastChannel();
 
+  // Tarayıcı Bildirim İzni İste (Kullanıcıyı sürekli rahatsız etmemek için hafıza kontrolü)
+  if ("Notification" in window && Notification.permission === "default") {
+    const isDismissed = localStorage.getItem("ayg-notification-dismissed") === "true";
+    if (!isDismissed) {
+      Notification.requestPermission().then(permission => {
+        if (permission !== "granted") {
+          // Kullanıcı izin vermediyse (reddettiyse veya kapattıysa) bir daha otomatik sorma
+          localStorage.setItem("ayg-notification-dismissed", "true");
+        }
+      });
+    }
+  }
+
   if (supabaseClient) {
     // Supabase bağlıysa bulutla eşle ve dinlemeye başla
     await syncWithSupabase(true);
@@ -312,7 +337,7 @@ function updateAdminUI() {
   const btnSettingsToggle = document.getElementById("btn-settings-toggle");
   const btnQrScan = document.getElementById("btn-qr-scan");
   
-  const isSuper = state.activeUser === "Admin";
+  const isSuper = isAdminUser();
   
   if (tabAdmin) {
     if (isSuper) {
@@ -364,3 +389,27 @@ function updateAdminUI() {
 
 // Başlat
 window.addEventListener("DOMContentLoaded", init);
+
+// Dinamik Zil/Bildirim Sesi
+function playNotificationSound() {
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    // 2 tonlu şık zil sesi (C5 ve E5)
+    const playTone = (freq, start, duration) => {
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, audioContext.currentTime + start);
+      gain.gain.setValueAtTime(0.25, audioContext.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + start + duration);
+      osc.start(audioContext.currentTime + start);
+      osc.stop(audioContext.currentTime + start + duration);
+    };
+    playTone(523.25, 0, 0.15); // Bip
+    playTone(659.25, 0.15, 0.35); // Bap
+  } catch (e) {
+    console.warn("Ses çalınamadı:", e);
+  }
+}
