@@ -273,10 +273,10 @@ DROP POLICY IF EXISTS "Allow public insert push_subscriptions" ON public.push_su
 CREATE POLICY "Allow public insert push_subscriptions" ON public.push_subscriptions FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Allow public delete push_subscriptions" ON public.push_subscriptions;
-CREATE POLICY "Allow public delete push_subscriptions" ON public.push_subscriptions FOR DELETE USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow public delete push_subscriptions" ON public.push_subscriptions FOR DELETE USING (true);
 
 DROP POLICY IF EXISTS "Allow public update push_subscriptions" ON public.push_subscriptions;
-CREATE POLICY "Allow public update push_subscriptions" ON public.push_subscriptions FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Allow public update push_subscriptions" ON public.push_subscriptions FOR UPDATE USING (true) WITH CHECK (true);
 
 -- =============================================
 -- STOCKS (Stok Takip Bildirimleri) Tablosu Eklentisi
