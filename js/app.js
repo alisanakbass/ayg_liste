@@ -42,6 +42,7 @@ function broadcastUpdate(voiceMsg) {
 let supabaseChannelOrders = null;
 let supabaseChannelProfiles = null;
 let supabaseChannelVehicles = null;
+let supabaseChannelStocks = null;
 
 function initSupabaseRealtime() {
   if (!supabaseClient) return;
@@ -51,6 +52,7 @@ function initSupabaseRealtime() {
     if (supabaseChannelOrders) supabaseClient.removeChannel(supabaseChannelOrders);
     if (supabaseChannelProfiles) supabaseClient.removeChannel(supabaseChannelProfiles);
     if (supabaseChannelVehicles) supabaseClient.removeChannel(supabaseChannelVehicles);
+    if (supabaseChannelStocks) supabaseClient.removeChannel(supabaseChannelStocks);
 
     supabaseChannelOrders = supabaseClient
       .channel('public:orders')
@@ -123,6 +125,21 @@ function initSupabaseRealtime() {
         await syncWithSupabase(false);
       })
       .subscribe();
+
+    supabaseChannelStocks = supabaseClient
+      .channel('public:stocks')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'stocks' }, async (payload) => {
+        if (typeof syncStocksWithSupabase === "function") {
+          await syncStocksWithSupabase(state.currentTab === "stock");
+        }
+        
+        if (payload.eventType === "INSERT") {
+          speakText("Yeni eksik stok bildirildi.");
+          showToast("🔔 Yeni bir eksik stok bildirimi var!", "warning");
+          playNotificationSound();
+        }
+      })
+      .subscribe();
   } catch (e) {
     console.error("Supabase Realtime aboneliğinde hata:", e);
   }
@@ -172,6 +189,10 @@ async function syncWithSupabase(triggerUI = true) {
 
     saveState();
 
+    if (typeof syncStocksWithSupabase === "function") {
+      syncStocksWithSupabase(triggerUI && state.currentTab === "stock");
+    }
+
     if (triggerUI) {
       if (typeof renderActiveOrders === "function") renderActiveOrders();
       if (typeof renderShippingOrders === "function") renderShippingOrders();
@@ -194,7 +215,7 @@ function switchTab(tab) {
   }
   
   state.currentTab = tab;
-  ["create", "active", "shipping", "history", "admin"].forEach((t) => {
+  ["create", "active", "shipping", "history", "admin", "stock"].forEach((t) => {
     const page = document.getElementById(`page-${t}`);
     if (page) page.classList.add("hidden");
     const el = document.getElementById(`tab-${t}`);
@@ -240,6 +261,9 @@ function switchTab(tab) {
   }
   if (tab === "admin" && typeof switchAdminSubTab === "function") {
     switchAdminSubTab("profiles");
+  }
+  if (tab === "stock" && typeof syncStocksWithSupabase === "function") {
+    syncStocksWithSupabase(true);
   }
   if (typeof updateStats === "function") updateStats();
 }

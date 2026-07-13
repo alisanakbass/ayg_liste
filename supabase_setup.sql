@@ -277,3 +277,55 @@ CREATE POLICY "Allow public delete push_subscriptions" ON public.push_subscripti
 
 DROP POLICY IF EXISTS "Allow public update push_subscriptions" ON public.push_subscriptions;
 CREATE POLICY "Allow public update push_subscriptions" ON public.push_subscriptions FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+
+-- =============================================
+-- STOCKS (Stok Takip Bildirimleri) Tablosu Eklentisi
+-- =============================================
+CREATE TABLE IF NOT EXISTS public.stocks (
+    id TEXT PRIMARY KEY,
+    product_name TEXT NOT NULL,
+    requested_quantity INT NOT NULL,
+    remaining_quantity INT NOT NULL,
+    status TEXT NOT NULL, -- 'Eksik', 'Sipariş Verildi', 'Tamamlandı'
+    ordered_quantity INT,
+    estimated_delivery TEXT,
+    received_quantity INT,
+    created_by TEXT NOT NULL,
+    ordered_by TEXT,
+    received_by TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    ordered_at TIMESTAMP WITH TIME ZONE,
+    received_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Row Level Security (RLS) Etkinleştirme
+ALTER TABLE public.stocks ENABLE ROW LEVEL SECURITY;
+
+-- Politikalar
+DROP POLICY IF EXISTS "Allow public select stocks" ON public.stocks;
+CREATE POLICY "Allow public select stocks" ON public.stocks FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert stocks" ON public.stocks;
+CREATE POLICY "Allow public insert stocks" ON public.stocks FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public update stocks" ON public.stocks;
+CREATE POLICY "Allow public update stocks" ON public.stocks FOR UPDATE USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public delete stocks" ON public.stocks;
+CREATE POLICY "Allow public delete stocks" ON public.stocks FOR DELETE USING (true);
+
+-- Realtime yayınına ekleme
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_rel pr 
+    JOIN pg_publication p ON p.oid = pr.prpubid 
+    JOIN pg_class c ON c.oid = pr.prrelid 
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE p.pubname = 'supabase_realtime' 
+      AND n.nspname = 'public' 
+      AND c.relname = 'stocks'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.stocks;
+  END IF;
+END $$;

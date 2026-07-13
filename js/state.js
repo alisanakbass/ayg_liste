@@ -6,6 +6,7 @@ let state = {
   profiles: ["Ahmet", "Mehmet", "Ali", "Ayşe", "Fatma", "Hasan"],
   vehicles: [],
   orders: [],
+  stocks: [],
   currentTab: "active",
   modalOrderId: null,
   shippingOrderId: null,
@@ -48,6 +49,7 @@ function loadState() {
     state.adminProfiles = parsed.adminProfiles || [];
     state.vehicles = parsed.vehicles || [];
     state.orders = parsed.orders || [];
+    state.stocks = parsed.stocks || [];
     state.activeUser = parsed.activeUser || null;
     state.theme = parsed.theme || "light";
     state.voiceEnabled = parsed.voiceEnabled !== undefined ? parsed.voiceEnabled : false;
@@ -72,6 +74,7 @@ function saveState() {
       adminProfiles: state.adminProfiles || [],
       vehicles: state.vehicles,
       orders: state.orders,
+      stocks: state.stocks || [],
       activeUser: state.activeUser,
       theme: state.theme,
       voiceEnabled: state.voiceEnabled,
