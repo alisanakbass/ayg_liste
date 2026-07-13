@@ -32,15 +32,18 @@ CREATE TABLE IF NOT EXISTS public.orders (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 
--- Anonim erişim politikaları (Varsa önce silinir, sonra eklenir)
+-- Güvenli erişim politikaları (RLS Sıkılaştırma)
 DROP POLICY IF EXISTS "Allow public select profiles" ON public.profiles;
 CREATE POLICY "Allow public select profiles" ON public.profiles FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Allow public insert profiles" ON public.profiles;
-CREATE POLICY "Allow public insert profiles" ON public.profiles FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public insert profiles" ON public.profiles FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Allow public update profiles" ON public.profiles;
+CREATE POLICY "Allow public update profiles" ON public.profiles FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
 DROP POLICY IF EXISTS "Allow public delete profiles" ON public.profiles;
-CREATE POLICY "Allow public delete profiles" ON public.profiles FOR DELETE USING (true);
+CREATE POLICY "Allow public delete profiles" ON public.profiles FOR DELETE USING (auth.role() = 'authenticated');
 
 DROP POLICY IF EXISTS "Allow public select orders" ON public.orders;
 CREATE POLICY "Allow public select orders" ON public.orders FOR SELECT USING (true);
@@ -49,10 +52,10 @@ DROP POLICY IF EXISTS "Allow public insert orders" ON public.orders;
 CREATE POLICY "Allow public insert orders" ON public.orders FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Allow public update orders" ON public.orders;
-CREATE POLICY "Allow public update orders" ON public.orders FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public update orders" ON public.orders FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
 DROP POLICY IF EXISTS "Allow public delete orders" ON public.orders;
-CREATE POLICY "Allow public delete orders" ON public.orders FOR DELETE USING (true);
+CREATE POLICY "Allow public delete orders" ON public.orders FOR DELETE USING (auth.role() = 'authenticated');
 
 -- Realtime yayını (Publication) etkinleştirme (Varsa ekleme yapmaz)
 DO $$
@@ -110,15 +113,15 @@ CREATE POLICY "Allow anonymous read access to vehicles" ON public.vehicles
 
 DROP POLICY IF EXISTS "Allow anonymous insert access to vehicles" ON public.vehicles;
 CREATE POLICY "Allow anonymous insert access to vehicles" ON public.vehicles
-    FOR INSERT WITH CHECK (true);
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
 DROP POLICY IF EXISTS "Allow anonymous update access to vehicles" ON public.vehicles;
 CREATE POLICY "Allow anonymous update access to vehicles" ON public.vehicles
-    FOR UPDATE USING (true) WITH CHECK (true);
+    FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
 DROP POLICY IF EXISTS "Allow anonymous delete access to vehicles" ON public.vehicles;
 CREATE POLICY "Allow anonymous delete access to vehicles" ON public.vehicles
-    FOR DELETE USING (true);
+    FOR DELETE USING (auth.role() = 'authenticated');
 
 -- Realtime yayınına ekleme
 DO $$
@@ -169,13 +172,13 @@ ALTER TABLE public.shift_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public select attendance" ON public.attendance;
-CREATE POLICY "Allow public select attendance" ON public.attendance FOR SELECT USING (true);
+CREATE POLICY "Allow public select attendance" ON public.attendance FOR SELECT USING (auth.role() = 'authenticated');
 
 DROP POLICY IF EXISTS "Allow public insert attendance" ON public.attendance;
-CREATE POLICY "Allow public insert attendance" ON public.attendance FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public insert attendance" ON public.attendance FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
 DROP POLICY IF EXISTS "Allow public delete attendance" ON public.attendance;
-CREATE POLICY "Allow public delete attendance" ON public.attendance FOR DELETE USING (true);
+CREATE POLICY "Allow public delete attendance" ON public.attendance FOR DELETE USING (auth.role() = 'authenticated');
 
 DROP POLICY IF EXISTS "Allow public select shift_settings" ON public.shift_settings;
 CREATE POLICY "Allow public select shift_settings" ON public.shift_settings FOR SELECT USING (true);
@@ -270,9 +273,7 @@ DROP POLICY IF EXISTS "Allow public insert push_subscriptions" ON public.push_su
 CREATE POLICY "Allow public insert push_subscriptions" ON public.push_subscriptions FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Allow public delete push_subscriptions" ON public.push_subscriptions;
-CREATE POLICY "Allow public delete push_subscriptions" ON public.push_subscriptions FOR DELETE USING (true);
+CREATE POLICY "Allow public delete push_subscriptions" ON public.push_subscriptions FOR DELETE USING (auth.role() = 'authenticated');
 
 DROP POLICY IF EXISTS "Allow public update push_subscriptions" ON public.push_subscriptions;
-CREATE POLICY "Allow public update push_subscriptions" ON public.push_subscriptions FOR UPDATE USING (true);
-
-
+CREATE POLICY "Allow public update push_subscriptions" ON public.push_subscriptions FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');

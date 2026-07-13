@@ -47,7 +47,136 @@ function initOrderForm() {
     state.pickerMarker = null;
   }
   
-  addOrderItem();
+  // Taslak siparişi yüklemeyi dene, yoksa boş ürün satırı ekle
+  const hasDraft = loadAdminOrderDraft();
+  if (!hasDraft) {
+    addOrderItem();
+  }
+
+  // Dinleyicileri bağla (Taslağa anlık yazması için)
+  const recEl = document.getElementById("order-recipient");
+  const addrEl = document.getElementById("order-address");
+  const urgEl = document.getElementById("order-urgency");
+
+  if (recEl && !recEl.dataset.listenerAttached) {
+    recEl.addEventListener("input", saveAdminOrderDraft);
+    recEl.dataset.listenerAttached = "true";
+  }
+  if (addrEl && !addrEl.dataset.listenerAttached) {
+    addrEl.addEventListener("input", saveAdminOrderDraft);
+    addrEl.dataset.listenerAttached = "true";
+  }
+  if (urgEl && !urgEl.dataset.listenerAttached) {
+    urgEl.addEventListener("change", saveAdminOrderDraft);
+    urgEl.dataset.listenerAttached = "true";
+  }
+}
+
+// Taslak Siparişi LocalStorage'a Kaydet
+function saveAdminOrderDraft() {
+  if (state.editingOrderId) return; // Düzenleme modunda taslağı bozma
+
+  const recipient = document.getElementById("order-recipient") ? document.getElementById("order-recipient").value.trim() : "";
+  const address = document.getElementById("order-address") ? document.getElementById("order-address").value.trim() : "";
+  const urgency = document.getElementById("order-urgency") ? document.getElementById("order-urgency").value : "Normal";
+
+  localStorage.setItem("ayg-admin-draft-recipient", recipient);
+  localStorage.setItem("ayg-admin-draft-address", address);
+  localStorage.setItem("ayg-admin-draft-urgency", urgency);
+
+  if (state.pickerLat && state.pickerLng) {
+    localStorage.setItem("ayg-admin-draft-lat", state.pickerLat);
+    localStorage.setItem("ayg-admin-draft-lng", state.pickerLng);
+  } else {
+    localStorage.removeItem("ayg-admin-draft-lat");
+    localStorage.removeItem("ayg-admin-draft-lng");
+  }
+
+  const itemDivs = document.querySelectorAll('[id^="item-"]');
+  const items = [];
+  for (const div of itemDivs) {
+    const nameEl = document.getElementById(`${div.id}-name`);
+    const qtyEl = document.getElementById(`${div.id}-qty`);
+    const unitEl = document.getElementById(`${div.id}-unit`);
+    if (!nameEl || !qtyEl) continue;
+    const name = nameEl.value.trim();
+    const qty = parseInt(qtyEl.value) || 1;
+    const unit = unitEl ? unitEl.value : "adet";
+    
+    items.push({
+      product_name: name,
+      requested_quantity: qty,
+      unit: unit
+    });
+  }
+  localStorage.setItem("ayg-admin-draft-items", JSON.stringify(items));
+}
+
+// Taslak Siparişi LocalStorage'dan Yükle
+function loadAdminOrderDraft() {
+  const recipient = localStorage.getItem("ayg-admin-draft-recipient");
+  const address = localStorage.getItem("ayg-admin-draft-address");
+  const urgency = localStorage.getItem("ayg-admin-draft-urgency");
+  const lat = localStorage.getItem("ayg-admin-draft-lat");
+  const lng = localStorage.getItem("ayg-admin-draft-lng");
+  const itemsStr = localStorage.getItem("ayg-admin-draft-items");
+
+  let hasData = false;
+
+  if (recipient && document.getElementById("order-recipient")) {
+    document.getElementById("order-recipient").value = recipient;
+    hasData = true;
+  }
+  if (address && document.getElementById("order-address")) {
+    document.getElementById("order-address").value = address;
+    hasData = true;
+  }
+  if (urgency && document.getElementById("order-urgency")) {
+    document.getElementById("order-urgency").value = urgency;
+    hasData = true;
+  }
+  if (lat && lng) {
+    state.pickerLat = parseFloat(lat);
+    state.pickerLng = parseFloat(lng);
+    hasData = true;
+  }
+
+  if (itemsStr) {
+    try {
+      const items = JSON.parse(itemsStr);
+      if (items && items.length > 0) {
+        document.getElementById("order-items-list").innerHTML = "";
+        orderItemCount = 0;
+        items.forEach(item => {
+          addOrderItem(item.product_name, item.requested_quantity, item.unit);
+        });
+        hasData = true;
+        return hasData;
+      }
+    } catch (e) {
+      console.error("Yönetici taslak ürünleri yüklenirken hata:", e);
+    }
+  }
+  return hasData;
+}
+
+// Taslak Siparişi Temizle
+function clearAdminOrderDraft() {
+  localStorage.removeItem("ayg-admin-draft-recipient");
+  localStorage.removeItem("ayg-admin-draft-address");
+  localStorage.removeItem("ayg-admin-draft-urgency");
+  localStorage.removeItem("ayg-admin-draft-lat");
+  localStorage.removeItem("ayg-admin-draft-lng");
+  localStorage.removeItem("ayg-admin-draft-items");
+}
+
+// Sipariş Listesini Onay ile Temizle
+function confirmClearOrderList() {
+  if (confirm("Sipariş listesindeki tüm ürünleri temizlemek istediğinize emin misiniz?")) {
+    clearAdminOrderDraft();
+    initOrderForm();
+    showToast("Sipariş listesi temizlendi.", "success");
+  }
 }
 
 function addOrderItem(name = "", qty = 1, unit = "adet") {
@@ -59,7 +188,7 @@ function addOrderItem(name = "", qty = 1, unit = "adet") {
   div.id = id;
   div.innerHTML = `
 <input type="text" placeholder="Ürün adı" 
-  class="flex-1 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-2 sm:px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs sm:text-sm text-slate-800 dark:text-white" 
+  class="flex-1 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-2 sm:px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs sm:text-sm text-slate-800 dark:text-white font-semibold" 
   id="${id}-name" value="${name}" />
 <select 
   class="w-16 sm:w-20 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-1 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-[10px] sm:text-xs text-center text-slate-800 dark:text-white font-semibold cursor-pointer" 
@@ -83,6 +212,16 @@ function addOrderItem(name = "", qty = 1, unit = "adet") {
 </button>
 `;
   document.getElementById("order-items-list").appendChild(div);
+
+  // Dinleyicileri bağla
+  const nameInp = div.querySelector(`#${id}-name`);
+  const unitSel = div.querySelector(`#${id}-unit`);
+  const qtyInp = div.querySelector(`#${id}-qty`);
+  if (nameInp) nameInp.addEventListener("input", saveAdminOrderDraft);
+  if (unitSel) unitSel.addEventListener("change", saveAdminOrderDraft);
+  if (qtyInp) qtyInp.addEventListener("input", saveAdminOrderDraft);
+
+  saveAdminOrderDraft();
 }
 
 function removeOrderItem(id) {
@@ -94,6 +233,7 @@ function removeOrderItem(id) {
       return;
     }
     el.remove();
+    saveAdminOrderDraft();
   }
 }
 
@@ -209,6 +349,7 @@ async function saveOrder() {
         const { error } = await supabaseClient.from('orders').insert([order]);
         if (error) throw error;
         
+        clearAdminOrderDraft(); // Taslağı sil
         showToast("✅ Sipariş kaydedildi!", "success");
         voiceMsg = "Yeni sipariş oluşturuldu.";
         state.pickerLat = null;
@@ -221,6 +362,7 @@ async function saveOrder() {
       }
     } else {
       state.orders.unshift(order);
+      clearAdminOrderDraft(); // Taslağı sil
       showToast("✅ Sipariş kaydedildi!", "success");
       voiceMsg = "Yeni sipariş oluşturuldu.";
       state.pickerLat = null;
@@ -367,7 +509,7 @@ function renderBekliyorCard(o) {
   const itemSummary =
     o.items
       .slice(0, 2)
-      .map((i) => `${i.product_name} (${i.requested_quantity} ${i.unit || "adet"})`)
+      .map((i) => `${escapeHTML(i.product_name)} (${i.requested_quantity} ${i.unit || "adet"})`)
       .join(", ") +
     (o.items.length > 2 ? ` ve +${o.items.length - 2} ürün` : "");
     
@@ -377,12 +519,12 @@ function renderBekliyorCard(o) {
   <!-- Düzenleme ve Silme Butonları -->
   <div class="absolute top-4 right-4 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
     <button onclick="editOrder('${o.id}')" 
-            class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-indigo-600 hover:text-white flex items-center justify-center transition-all"
+            class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-indigo-600 hover:text-white flex items-center justify-center transition-all cursor-pointer"
             title="Siparişi Düzenle">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
     </button>
     <button onclick="deleteOrder('${o.id}')" 
-            class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-red-600 hover:text-white flex items-center justify-center transition-all"
+            class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-red-600 hover:text-white flex items-center justify-center transition-all cursor-pointer"
             title="Siparişi Sil">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
     </button>
@@ -396,7 +538,7 @@ function renderBekliyorCard(o) {
     <p class="font-bold text-slate-800 dark:text-slate-100 text-base mb-1.5 flex items-start gap-1 justify-between">
       <span class="flex items-start gap-1 min-w-0 flex-1">
         <svg class="w-5 h-5 text-slate-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        <span class="truncate pr-4">${o.customer_address}</span>
+        <span class="truncate pr-4">${escapeHTML(o.customer_address)}</span>
       </span>
       ${renderNavigationButton(o)}
     </p>
@@ -407,8 +549,8 @@ function renderBekliyorCard(o) {
   
   <div class="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-3 mt-1">
     <div class="flex flex-col gap-0.5 text-[10px] text-slate-400 font-semibold uppercase">
-      <span>👤 Temsilci: ${o.created_by || "—"}</span>
-      <span class="text-indigo-600 dark:text-indigo-400 normal-case font-bold">🎯 Alıcı: ${o.recipient || "Genel"}</span>
+      <span>👤 Temsilci: ${escapeHTML(o.created_by || "") || "—"}</span>
+      <span class="text-indigo-600 dark:text-indigo-400 normal-case font-bold">🎯 Alıcı: ${escapeHTML(o.recipient || "") || "Genel"}</span>
     </div>
     <button onclick="startPicking('${o.id}')" 
       class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs px-4 py-2.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-1 cursor-pointer">
@@ -432,17 +574,17 @@ function renderHazirlaniyorCard(o) {
     <p class="font-bold text-slate-800 dark:text-slate-100 text-base mb-2 flex items-start gap-1 justify-between">
       <span class="flex items-start gap-1 min-w-0 flex-1">
         <svg class="w-5 h-5 text-slate-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        <span class="truncate pr-4">${o.customer_address}</span>
+        <span class="truncate pr-4">${escapeHTML(o.customer_address)}</span>
       </span>
       ${renderNavigationButton(o)}
     </p>
     <div class="flex justify-between items-center text-[10px] text-slate-400 font-semibold uppercase mb-2.5">
-      <span>👤 Temsilci: ${o.created_by || "—"}</span>
-      <span class="text-indigo-600 dark:text-indigo-400 normal-case font-bold">🎯 Alıcı: ${o.recipient || "Genel"}</span>
+      <span>👤 Temsilci: ${escapeHTML(o.created_by || "") || "—"}</span>
+      <span class="text-indigo-600 dark:text-indigo-400 normal-case font-bold">🎯 Alıcı: ${escapeHTML(o.recipient || "") || "Genel"}</span>
     </div>
     <p class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 bg-indigo-50 dark:bg-indigo-500/10 px-3 py-2 rounded-xl border border-indigo-100 dark:border-indigo-500/20">
       <svg class="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-      <span>Hazırlayan: <b>${o.picked_by || "—"}</b></span>
+      <span>Hazırlayan: <b>${escapeHTML(o.picked_by || "") || "—"}</b></span>
     </p>
   </div>
   

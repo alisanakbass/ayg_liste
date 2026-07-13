@@ -536,3 +536,84 @@ async function subscribeUserToPush() {
     console.error("Web Push abonelik hatası:", err);
   }
 }
+
+// Supabase Auth ile Giriş Doğrulaması
+async function verifyLockScreenPassword() {
+  const emailInput = document.getElementById("lock-screen-email-input");
+  const passwordInput = document.getElementById("lock-screen-password-input");
+  
+  if (!emailInput || !passwordInput) return;
+  
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+  
+  if (!email || !password) {
+    showToast("Lütfen e-posta ve şifrenizi girin!", "warning");
+    return;
+  }
+  
+  if (!supabaseClient) {
+    showToast("Supabase bağlantısı aktif değil!", "error");
+    return;
+  }
+  
+  const btn = document.querySelector("#app-lock-screen button");
+  const originalText = btn.innerHTML;
+  btn.innerHTML = `<span class="animate-pulse">Giriş Yapılıyor...</span>`;
+  btn.disabled = true;
+  
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: email,
+      password: password
+    });
+    
+    if (error) throw error;
+    
+    // Başarılı giriş
+    localStorage.setItem("ayg-access-authorized", "true");
+    
+    let userName = "Personel";
+    if (email.toLowerCase().startsWith("admin")) {
+      userName = "Admin";
+    } else {
+      userName = email.split("@")[0];
+      userName = userName.charAt(0).toUpperCase() + userName.slice(1);
+    }
+    
+    state.activeUser = userName;
+    saveState();
+    
+    const lockScreen = document.getElementById("app-lock-screen");
+    if (lockScreen) lockScreen.classList.add("hidden");
+    
+    showToast(`Hoş geldiniz, ${userName}!`, "success");
+    
+    if (typeof init === "function") init();
+  } catch (e) {
+    console.error("Giriş hatası:", e);
+    showToast("E-posta veya şifre hatalı!", "error");
+  } finally {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
+
+// Oturumu Kapat ve Sistemi Kilitle
+async function logoutAdmin() {
+  localStorage.removeItem("ayg-access-authorized");
+  state.activeUser = null;
+  saveState();
+  if (supabaseClient) {
+    try {
+      await supabaseClient.auth.signOut();
+    } catch(e) {}
+  }
+  const lockScreen = document.getElementById("app-lock-screen");
+  if (lockScreen) lockScreen.classList.remove("hidden");
+  const profileScreen = document.getElementById("profile-screen");
+  if (profileScreen) profileScreen.classList.add("hidden");
+  const mainApp = document.getElementById("main-app");
+  if (mainApp) mainApp.classList.add("hidden");
+  showToast("Oturum kapatıldı ve sistem kilitlendi.", "info");
+}

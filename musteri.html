@@ -274,6 +274,19 @@
                   class="w-full bg-slate-50 border border-slate-200 hover:border-slate-350 focus:border-red-500 text-slate-900 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-red-500/10 focus:outline-none transition-all font-semibold"
                 />
               </div>
+
+              <!-- Telefon Numarası -->
+              <div class="flex flex-col gap-2.5">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1">
+                  Telefon Numarası <span class="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  id="cust-phone"
+                  placeholder="Örn: 0532 123 4567"
+                  class="w-full bg-slate-50 border border-slate-200 hover:border-slate-350 focus:border-red-500 text-slate-900 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-red-500/10 focus:outline-none transition-all font-semibold"
+                />
+              </div>
             </div>
 
             <div class="mt-8 pt-4 border-t border-slate-100 flex items-center justify-between gap-4">
@@ -327,8 +340,8 @@
               <!-- Dinamik satırlar buraya eklenecek -->
             </div>
 
-            <!-- Yeni Ürün Ekleme Butonu (Listenin Altında) -->
-            <div class="mt-4 flex justify-end sm:justify-start">
+            <!-- Yeni Ürün Ekleme ve Listeyi Temizle Butonları (Listenin Altında) -->
+            <div class="mt-4 flex flex-col sm:flex-row gap-3 justify-between items-center">
               <button
                 type="button"
                 onclick="addOrderItem()"
@@ -336,6 +349,15 @@
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
                 <span>Yeni Ürün Ekle</span>
+              </button>
+
+              <button
+                type="button"
+                onclick="confirmClearOrderList()"
+                class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-650 rounded-xl text-xs font-bold transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-red-200/50 w-full sm:w-auto font-sans"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                <span>Listeyi Temizle</span>
               </button>
             </div>
 
@@ -359,30 +381,16 @@
 
             <!-- Gönderme ve Aksiyonlar -->
             <div class="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-3">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                
-                <!-- Supabase Gönder -->
-                <button
-                  id="btn-submit-db"
-                  onclick="submitOrderToDb()"
-                  class="py-3.5 px-5 bg-red-600 hover:bg-red-750 text-white font-bold rounded-xl shadow-md shadow-red-600/10 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                  <span>Siparişi Kaydet ve Sisteme Gönder</span>
-                </button>
-
-                <!-- WhatsApp İlet -->
-                <button
-                  id="btn-submit-wa"
-                  onclick="submitOrderToWa()"
-                  class="py-3.5 px-5 bg-white hover:bg-slate-50 text-emerald-600 border border-emerald-500/30 hover:border-emerald-500/50 font-bold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer text-sm shadow-sm"
-                >
-                  <svg class="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.739-1.456L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.97C16.59 2.028 14.108.998 11.48.998 6.046.998 1.62 5.37 1.616 10.8c-.001 1.705.452 3.37 1.309 4.824L1.99 21.097l5.836-1.517zM18.5 14.6c-.3-.15-1.78-.88-2.05-.98-.27-.1-.47-.15-.67.15-.2.3-.77.98-.95 1.18-.18.2-.35.23-.65.08-1.2-.6-2.05-1.05-2.88-2.5-.22-.38.22-.35.63-1.16.07-.15.03-.28-.02-.38-.05-.1-.47-1.13-.64-1.55-.17-.41-.35-.35-.48-.36h-.41c-.13 0-.36.05-.55.25-.19.2-.72.7-.72 1.72 0 1.02.74 2 1.84 3.47 1.1 1.47 2.64 2.37 4.98 3.27.56.22 1 .35 1.34.46.56.18 1.07.15 1.47.09.45-.07 1.78-.73 2.03-1.43.25-.7.25-1.3.17-1.43-.07-.15-.27-.25-.57-.4z"/>
-                  </svg>
-                  <span>WhatsApp ile Sipariş İlet</span>
-                </button>
-              </div>
+              <!-- Supabase Gönder -->
+              <button
+                id="btn-submit-db"
+                onclick="submitOrderToDb()"
+                class="w-full py-3.5 px-5 bg-red-600 hover:bg-red-750 text-white font-bold rounded-xl shadow-md shadow-red-600/10 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span>Siparişi Kaydet ve Sisteme Gönder</span>
+              </button>
+            </div>
 
               <button
                 onclick="goToStep(2)"
@@ -553,8 +561,11 @@
         // Form verilerini localStorage'dan çek
         const hasSavedProfile = loadProfileDetails();
         
-        // İlk sipariş kalemi
-        addOrderItem();
+        // Taslak sipariş ürünleri varsa yükle, yoksa boş satır ekle
+        const hasDraftItems = loadDraftItems();
+        if (!hasDraftItems) {
+          addOrderItem();
+        }
         
         // Kayıtlı profil varsa sihirbazda hızlı devam etme kutusunu göster
         if (hasSavedProfile) {
@@ -569,6 +580,7 @@
         document.getElementById("cust-company").addEventListener("input", saveProfileDetails);
         document.getElementById("cust-address").addEventListener("input", saveProfileDetails);
         document.getElementById("cust-recipient").addEventListener("input", saveProfileDetails);
+        document.getElementById("cust-phone").addEventListener("input", saveProfileDetails);
       });
 
       // Profil Bilgilerini localStorage'dan Yükle
@@ -576,6 +588,7 @@
         const company = localStorage.getItem("ayg-cust-company");
         const address = localStorage.getItem("ayg-cust-address");
         const recipient = localStorage.getItem("ayg-cust-recipient");
+        const phone = localStorage.getItem("ayg-cust-phone");
         
         const savedLat = localStorage.getItem("ayg-cust-lat");
         const savedLng = localStorage.getItem("ayg-cust-lng");
@@ -583,6 +596,7 @@
         if (company) document.getElementById("cust-company").value = company;
         if (address) document.getElementById("cust-address").value = address;
         if (recipient) document.getElementById("cust-recipient").value = recipient;
+        if (phone) document.getElementById("cust-phone").value = phone;
 
         if (savedLat && savedLng) {
           state.selectedLat = parseFloat(savedLat);
@@ -598,10 +612,12 @@
         const company = document.getElementById("cust-company").value.trim();
         const address = document.getElementById("cust-address").value.trim();
         const recipient = document.getElementById("cust-recipient").value.trim();
+        const phone = document.getElementById("cust-phone").value.trim();
 
         localStorage.setItem("ayg-cust-company", company);
         localStorage.setItem("ayg-cust-address", address);
         localStorage.setItem("ayg-cust-recipient", recipient);
+        localStorage.setItem("ayg-cust-phone", phone);
         
         if (state.selectedLat && state.selectedLng) {
           localStorage.setItem("ayg-cust-lat", state.selectedLat);
@@ -643,8 +659,13 @@
         
         if (stepNum === 3 && state.currentStep === 2) {
           const addr = document.getElementById("cust-address").value.trim();
+          const phone = document.getElementById("cust-phone").value.trim();
           if (!addr) {
             showToast("Lütfen Sevk Adresi girin!", "warning");
+            return;
+          }
+          if (!phone) {
+            showToast("Lütfen Telefon Numarası girin!", "warning");
             return;
           }
         }
@@ -654,12 +675,14 @@
           const comp = document.getElementById("cust-company").value.trim();
           const addr = document.getElementById("cust-address").value.trim();
           const rec = document.getElementById("cust-recipient").value.trim();
+          const phone = document.getElementById("cust-phone").value.trim();
           
           document.getElementById("summary-company").textContent = comp;
           
           let summaryAddressText = addr;
           if (state.selectedLat && state.selectedLng) summaryAddressText = "📍 Konum İşaretlendi | " + summaryAddressText;
           if (rec) summaryAddressText += " | Yetkili: " + rec;
+          if (phone) summaryAddressText += " | Tel: " + phone;
           
           document.getElementById("summary-address").textContent = summaryAddressText;
         }
@@ -775,6 +798,53 @@
         loadMyOrders();
       }
 
+      // Taslak Ürünleri LocalStorage'a Kaydet
+      function saveDraftItems() {
+        const rows = document.querySelectorAll('[id^="item-row-"]');
+        const items = [];
+        for (const row of rows) {
+          const nameEl = document.getElementById(`${row.id}-name`);
+          const qtyEl = document.getElementById(`${row.id}-qty`);
+          const unitEl = document.getElementById(`${row.id}-unit`);
+          
+          if (nameEl && qtyEl) {
+            const name = nameEl.value.trim();
+            const qty = parseInt(qtyEl.value) || 1;
+            const unit = unitEl ? unitEl.value : "adet";
+            
+            items.push({
+              product_name: name,
+              requested_quantity: qty,
+              unit: unit
+            });
+          }
+        }
+        localStorage.setItem("ayg-draft-items", JSON.stringify(items));
+      }
+
+      // Taslak Ürünleri LocalStorage'dan Yükle
+      function loadDraftItems() {
+        const draft = localStorage.getItem("ayg-draft-items");
+        if (draft) {
+          try {
+            const items = JSON.parse(draft);
+            if (items && items.length > 0) {
+              const container = document.getElementById("order-items-container");
+              container.innerHTML = "";
+              state.itemsCount = 0;
+              
+              items.forEach(item => {
+                addOrderItem(item.product_name, item.requested_quantity, item.unit);
+              });
+              return true;
+            }
+          } catch (e) {
+            console.error("Taslak ürünler yüklenirken hata oluştu:", e);
+          }
+        }
+        return false;
+      }
+
       // Yeni Ürün Giriş Satırı Ekle
       function addOrderItem(name = "", qty = 1, unit = "adet") {
         state.itemsCount++;
@@ -841,6 +911,16 @@
           </div>
         `;
         container.appendChild(div);
+
+        // Dinleyicileri bağla
+        const nameInput = div.querySelector(`#${id}-name`);
+        const unitSelect = div.querySelector(`#${id}-unit`);
+        const qtyInput = div.querySelector(`#${id}-qty`);
+        if (nameInput) nameInput.addEventListener("input", saveDraftItems);
+        if (unitSelect) unitSelect.addEventListener("change", saveDraftItems);
+        if (qtyInput) qtyInput.addEventListener("input", saveDraftItems);
+
+        saveDraftItems();
       }
 
       // Miktar Değişimi
@@ -850,6 +930,7 @@
           let val = parseInt(qtyInput.value) || 1;
           val = Math.max(1, val + delta);
           qtyInput.value = val;
+          saveDraftItems();
         }
       }
 
@@ -863,7 +944,18 @@
             return;
           }
           el.classList.add("opacity-0", "translate-y-2");
-          setTimeout(() => el.remove(), 200);
+          setTimeout(() => {
+            el.remove();
+            saveDraftItems();
+          }, 200);
+        }
+      }
+
+      // Sipariş Listesini Onay ile Temizle
+      function confirmClearOrderList() {
+        if (confirm("Sipariş listesindeki tüm ürünleri temizlemek istediğinize emin misiniz?")) {
+          clearOrderForm();
+          showToast("Sipariş listesi temizlendi.", "success");
         }
       }
 
@@ -1128,6 +1220,7 @@
         const companyName = document.getElementById("cust-company").value.trim();
         const address = document.getElementById("cust-address").value.trim();
         const recipient = document.getElementById("cust-recipient").value.trim() || "Genel";
+        const phone = document.getElementById("cust-phone").value.trim();
         
         if (!companyName) {
           showToast("Lütfen Şirket / Müşteri Adı girin!", "error");
@@ -1174,7 +1267,10 @@
         saveProfileDetails();
 
         // Müşteri bilgisi ve adresi birleştirilerek orders tablosundaki 'customer_address' alanına yazılır.
-        const formattedAddress = `${companyName} [Adres: ${address}]`;
+        let formattedAddress = `${companyName} [Adres: ${address}]`;
+        if (phone) {
+          formattedAddress += ` [Tel: ${phone}]`;
+        }
 
         return {
           id: generateId(),
@@ -1276,6 +1372,7 @@
       function clearOrderForm() {
         document.getElementById("order-items-container").innerHTML = "";
         state.itemsCount = 0;
+        localStorage.removeItem("ayg-draft-items");
         addOrderItem();
       }
 

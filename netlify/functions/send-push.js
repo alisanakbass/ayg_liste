@@ -47,11 +47,24 @@ exports.handler = async (event) => {
       };
     }
 
-    const companyName = newOrder.customer_address.split(" [Adres:")[0] || "Müşteri";
+    let companyName = "Müşteri";
+    if (newOrder.customer_address) {
+      if (newOrder.customer_address.includes(" [Adres:")) {
+        companyName = newOrder.customer_address.split(" [Adres:")[0];
+      } else {
+        companyName = newOrder.customer_address.substring(0, 30);
+      }
+    }
     
+    const creator = newOrder.created_by || "Müşteri";
+    let bodyText = `${companyName} yeni bir sipariş oluşturdu.`;
+    if (creator !== "Müşteri") {
+      bodyText = `Personel (${creator}) yeni bir sipariş oluşturdu: ${companyName}`;
+    }
+
     const notificationPayload = JSON.stringify({
       title: "🔔 Yeni AYG Siparişi!",
-      body: `${companyName} yeni bir sipariş oluşturdu.`
+      body: bodyText
     });
 
     // push_subscriptions tablosundan tüm aktif cihaz aboneliklerini çek

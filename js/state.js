@@ -26,7 +26,6 @@ let state = {
   supabaseKey: "sb_publishable_tlsSFNjL-zfH-KUWShqIkQ_H5G97Hvd",
   modalSortOrder: "unchecked-first", // 'normal', 'unchecked-first', 'checked-first'
   currentModalOrder: null,
-  adminPassword: "1234",
   adminProfiles: []
 };
 
@@ -179,19 +178,13 @@ function isAdminUser() {
   return state.activeUser === "Admin" || (state.adminProfiles && state.adminProfiles.includes(state.activeUser));
 }
 
-// Yönetici Kilit Ekranı Şifre Doğrulaması
-function verifyLockScreenPassword() {
-  const input = document.getElementById("lock-screen-password-input");
-  const password = input ? input.value : "";
-  
-  if (password === state.adminPassword) {
-    localStorage.setItem("ayg-access-authorized", "true");
-    const lockScreen = document.getElementById("app-lock-screen");
-    if (lockScreen) lockScreen.classList.add("hidden");
-    showToast("Erişim doğrulandı!", "success");
-    // Uygulama başlangıcını tetikle
-    if (typeof init === "function") init();
-  } else {
-    showToast("Hatalı yönetici şifresi!", "error");
-  }
+// HTML Karakterlerini Temizleme (XSS Koruması)
+function escapeHTML(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
