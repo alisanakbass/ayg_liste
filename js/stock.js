@@ -239,14 +239,17 @@ function renderStockPanel() {
         <h3 class="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Eksik / Biten Ürün Bildir</h3>
         
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="sm:col-span-2">
+          <div class="sm:col-span-2 relative">
             <label class="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">Ürün Adı</label>
             <input
               id="stock-product-name"
               type="text"
               placeholder="Örn: 10'luk Matkap Ucu, Şerit Metre..."
               class="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-800 dark:text-white transition-all text-sm"
+              autocomplete="off"
             />
+            <!-- Canlı Arama Öneri Kutusu -->
+            <div id="stock-suggestions-box" class="hidden absolute left-0 right-0 top-[calc(100%+4px)] z-50 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl shadow-premium max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/50"></div>
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">İstenilen Adet</label>
@@ -278,7 +281,8 @@ function renderStockPanel() {
           )"
           class="w-full bg-red-650 hover:bg-red-700 text-white py-3.5 rounded-xl font-bold hover:shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
         >
-          <span>⚠️</span> Eksik Bildirimini Gönder
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          Eksik Bildirimini Gönder
         </button>
       </div>
     </div>
@@ -321,9 +325,10 @@ function renderStockPanel() {
               </div>
               <button
                 onclick="openOrderStockModal('${s.id}', '${escapeHTML(s.product_name)}', ${s.requested_quantity})"
-                class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1"
+                class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
               >
-                <span>📦</span> Sipariş Verildi Yap
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                Sipariş Verildi Yap
               </button>
             </div>
           `).join("")}
@@ -365,9 +370,10 @@ function renderStockPanel() {
               </div>
               <button
                 onclick="openReceiveStockModal('${s.id}', '${escapeHTML(s.product_name)}', ${s.ordered_quantity})"
-                class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer shadow-md"
+                class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer shadow-md"
               >
-                <span>✅</span> Geldi (Teslim Al)
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Geldi (Teslim Al)
               </button>
             </div>
           `).join("")}
@@ -414,6 +420,85 @@ function renderStockPanel() {
 
     </div>
   `;
+
+  // Canlı arama önerilerini başlat
+  initProductAutocomplete();
+}
+
+// Canlı Arama (Autocomplete) Yönetimi
+function initProductAutocomplete() {
+  const input = document.getElementById("stock-product-name");
+  const box = document.getElementById("stock-suggestions-box");
+  if (!input || !box) return;
+
+  let debounceTimer;
+
+  input.addEventListener("input", () => {
+    const val = input.value.trim();
+    clearTimeout(debounceTimer);
+
+    if (val.length < 3) {
+      box.innerHTML = "";
+      box.classList.add("hidden");
+      return;
+    }
+
+    debounceTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/.netlify/functions/search-products?q=${encodeURIComponent(val)}`);
+        if (!res.ok) throw new Error("Arama API hatası");
+        const list = await res.json();
+
+        if (list.length === 0) {
+          box.innerHTML = `<div class="p-3 text-xs text-slate-400 dark:text-slate-500 text-center">Öneri bulunamadı</div>`;
+          box.classList.remove("hidden");
+          return;
+        }
+
+        // Önerileri listele
+        box.innerHTML = list.map(item => `
+          <button 
+            type="button"
+            class="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/30 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all focus:outline-none flex items-center gap-2 cursor-pointer"
+          >
+            <svg class="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <span class="truncate">${escapeHTML(item)}</span>
+          </button>
+        `).join("");
+
+        box.classList.remove("hidden");
+
+        // Öneriye tıklama olayı
+        const buttons = box.querySelectorAll("button");
+        buttons.forEach((btn, idx) => {
+          btn.addEventListener("click", () => {
+            input.value = list[idx];
+            box.innerHTML = "";
+            box.classList.add("hidden");
+          });
+        });
+
+      } catch (err) {
+        console.error("Autocomplete error:", err);
+      }
+    }, 300);
+  });
+
+  // Tıklamayla önerileri kapatma lojiği
+  document.addEventListener("click", (e) => {
+    if (e.target !== input && !box.contains(e.target)) {
+      box.classList.add("hidden");
+    }
+  });
+
+  // Girdi alanına odaklanınca eğer içerik doluysa önerileri tekrar aç
+  input.addEventListener("focus", () => {
+    if (input.value.trim().length >= 3 && box.children.length > 0) {
+      box.classList.remove("hidden");
+    }
+  });
 }
 
 // Dinamik Modal Yönetimi

@@ -437,6 +437,16 @@ function updateAdminUI() {
       if (window.notifInterval) clearInterval(window.notifInterval);
     }
   }
+
+  // FAB Admin Butonu Kontrolü
+  const fabBtnAdmin = document.getElementById("fab-btn-admin");
+  if (fabBtnAdmin) {
+    if (isSuper) {
+      fabBtnAdmin.classList.remove("hidden");
+    } else {
+      fabBtnAdmin.classList.add("hidden");
+    }
+  }
 }
 
 // Başlat
@@ -640,4 +650,38 @@ async function logoutAdmin() {
   const mainApp = document.getElementById("main-app");
   if (mainApp) mainApp.classList.add("hidden");
   showToast("Oturum kapatıldı ve sistem kilitlendi.", "info");
+}
+
+// TELEFONLAR İÇİN DİNAMİK YÖNLENDİRME (FAB & MENU) İŞLEMLERİ
+function toggleFabMenu() {
+  const menu = document.getElementById("fab-nav-menu");
+  const iconMenu = document.getElementById("fab-icon-menu");
+  const iconClose = document.getElementById("fab-icon-close");
+  const btn = document.getElementById("fab-main-btn");
+  
+  if (!menu) return;
+  
+  const isHidden = menu.classList.contains("hidden");
+  if (isHidden) {
+    menu.classList.remove("hidden");
+    iconMenu.classList.add("hidden");
+    iconClose.classList.remove("hidden");
+    btn.classList.remove("bg-indigo-600", "hover:bg-indigo-500");
+    btn.classList.add("bg-slate-700", "hover:bg-slate-600");
+    iconClose.classList.add("rotate-90");
+  } else {
+    menu.classList.add("hidden");
+    iconMenu.classList.remove("hidden");
+    iconClose.classList.add("hidden");
+    btn.classList.add("bg-indigo-600", "hover:bg-indigo-500");
+    btn.classList.remove("bg-slate-700", "hover:bg-slate-600");
+    iconClose.classList.remove("rotate-90");
+  }
+}
+
+function handleFabTab(tab) {
+  if (typeof switchTab === "function") {
+    switchTab(tab);
+  }
+  toggleFabMenu(); // Seçim sonrası menüyü kapat
 }

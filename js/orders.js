@@ -187,9 +187,13 @@ function addOrderItem(name = "", qty = 1, unit = "adet") {
     "flex gap-1.5 sm:gap-2 items-center bg-slate-50 dark:bg-slate-900/60 p-1.5 sm:p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 animate-slide-in";
   div.id = id;
   div.innerHTML = `
-<input type="text" placeholder="Ürün adı" 
-  class="flex-1 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-2 sm:px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs sm:text-sm text-slate-800 dark:text-white font-semibold" 
-  id="${id}-name" value="${name}" />
+<div class="relative flex-1">
+  <input type="text" placeholder="Ürün adı" 
+    class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-2 sm:px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs sm:text-sm text-slate-800 dark:text-white font-semibold" 
+    id="${id}-name" value="${name}" autocomplete="off" />
+  <!-- Canlı Arama Öneri Kutusu -->
+  <div id="${id}-suggestions-box" class="hidden absolute left-0 right-0 top-[calc(100%+4px)] z-50 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl shadow-premium max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/50"></div>
+</div>
 <select 
   class="w-16 sm:w-20 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-1 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-[10px] sm:text-xs text-center text-slate-800 dark:text-white font-semibold cursor-pointer" 
   id="${id}-unit">
@@ -220,6 +224,76 @@ function addOrderItem(name = "", qty = 1, unit = "adet") {
   if (nameInp) nameInp.addEventListener("input", saveAdminOrderDraft);
   if (unitSel) unitSel.addEventListener("change", saveAdminOrderDraft);
   if (qtyInp) qtyInp.addEventListener("input", saveAdminOrderDraft);
+
+  // Canlı arama otomatik tamamlama lojiği
+  if (nameInp) {
+    const box = div.querySelector(`#${id}-suggestions-box`);
+    let debounceTimer;
+    nameInp.addEventListener("input", () => {
+      const val = nameInp.value.trim();
+      clearTimeout(debounceTimer);
+
+      if (val.length < 3) {
+        box.innerHTML = "";
+        box.classList.add("hidden");
+        return;
+      }
+
+      debounceTimer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/.netlify/functions/search-products?q=${encodeURIComponent(val)}`);
+          if (!res.ok) throw new Error("Arama API hatası");
+          const list = await res.json();
+
+          if (list.length === 0) {
+            box.innerHTML = `<div class="p-3 text-xs text-slate-400 dark:text-slate-500 text-center">Öneri bulunamadı</div>`;
+            box.classList.remove("hidden");
+            return;
+          }
+
+          box.innerHTML = list.map(item => `
+            <button 
+              type="button"
+              class="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/30 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all focus:outline-none flex items-center gap-2 cursor-pointer"
+            >
+              <svg class="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+              <span class="truncate">${escapeHTML(item)}</span>
+            </button>
+          `).join("");
+
+          box.classList.remove("hidden");
+
+          const buttons = box.querySelectorAll("button");
+          buttons.forEach((btn, idx) => {
+            btn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              nameInp.value = list[idx];
+              box.innerHTML = "";
+              box.classList.add("hidden");
+              saveAdminOrderDraft(); // Taslağı güncelle
+            });
+          });
+
+        } catch (err) {
+          console.error("Autocomplete error:", err);
+        }
+      }, 300);
+    });
+
+    document.addEventListener("click", (e) => {
+      if (e.target !== nameInp && !box.contains(e.target)) {
+        box.classList.add("hidden");
+      }
+    });
+
+    nameInp.addEventListener("focus", () => {
+      if (nameInp.value.trim().length >= 3 && box.children.length > 0) {
+        box.classList.remove("hidden");
+      }
+    });
+  }
 
   saveAdminOrderDraft();
 }
