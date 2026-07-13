@@ -62,14 +62,18 @@ exports.handler = async (event, context) => {
         });
         if (res.status === 200) {
           const html = await res.text();
-          const regex = /<a[^>]*href=["']\/urun\/([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-          let match;
-          while ((match = regex.exec(html)) !== null) {
-            const rawText = match[2].replace(/<[^>]*>/g, '').trim().replace(/\s+/g, ' ');
-            // E-ticaret şablonundaki sol tarafta kalan "> " gibi fazla karakterleri temizle
-            const cleanedText = rawText.replace(/^[\s>"\']*/, '').trim();
-            if (cleanedText.length > 2) {
-              products.push(cleanedText);
+          const startIndex = html.indexOf('class="showcase-container');
+          if (startIndex !== -1) {
+            const showcaseHtml = html.substring(startIndex);
+            const regex = /<a[^>]*href=["']\/urun\/([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+            let match;
+            while ((match = regex.exec(showcaseHtml)) !== null) {
+              const rawText = match[2].replace(/<[^>]*>/g, '').trim().replace(/\s+/g, ' ');
+              // E-ticaret şablonundaki sol tarafta kalan "> " gibi fazla karakterleri temizle
+              const cleanedText = rawText.replace(/^[\s>"\']*/, '').trim();
+              if (cleanedText.length > 2) {
+                products.push(cleanedText);
+              }
             }
           }
         }
