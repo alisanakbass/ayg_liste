@@ -10,16 +10,25 @@ const URGENCY_BADGE = {
 const URGENCY_ICON = { "Çok Acil": "🔴", Acil: "🟠", Normal: "🔵" };
 
 function renderNavigationButton(o) {
-  const hasCoords = o.destination_lat && o.destination_lng;
-  const query = hasCoords 
-    ? `${o.destination_lat},${o.destination_lng}` 
-    : encodeURIComponent(o.customer_address);
+  const addr = (o.customer_address || "").trim();
+  const isLink = addr.startsWith("http://") || addr.startsWith("https://") || addr.includes("maps.apple") || addr.includes("apple.com") || addr.includes("yandex.") || addr.includes("goo.gl");
+  
+  let href;
+  if (isLink) {
+    href = addr;
+  } else {
+    const hasCoords = o.destination_lat && o.destination_lng;
+    const query = hasCoords 
+      ? `${o.destination_lat},${o.destination_lng}` 
+      : encodeURIComponent(addr);
+    href = `https://www.google.com/maps/search/?api=1&query=${query}`;
+  }
   
   return `
-<a href="https://www.google.com/maps/search/?api=1&query=${query}" 
+<a href="${href}" 
    target="_blank" 
    class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-xl border border-emerald-200 dark:border-emerald-500/20 transition-all active:scale-95 shadow-sm shrink-0"
-   title="Google Haritalar'da Yol Tarifi Al">
+   title="Yol Tarifi Al">
   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
   <span>Yol Tarifi</span>
 </a>
@@ -31,6 +40,8 @@ let orderItemCount = 0;
 function initOrderForm() {
   orderItemCount = 0;
   document.getElementById("order-address").value = "";
+  const openLinkBtn = document.getElementById("btn-open-address-link");
+  if (openLinkBtn) openLinkBtn.classList.add("hidden");
   document.getElementById("order-urgency").value = "Normal";
   document.getElementById("order-items-list").innerHTML = "";
   
@@ -313,6 +324,8 @@ function removeOrderItem(id) {
 
 async function saveOrder() {
   const address = document.getElementById("order-address").value.trim();
+  const phoneEl = document.getElementById("order-phone");
+  const phone = phoneEl ? phoneEl.value.trim() : "";
   const urgency = document.getElementById("order-urgency").value;
   const recipientEl = document.getElementById("order-recipient");
   const recipient = recipientEl ? recipientEl.value.trim() || "Genel" : "Genel";
@@ -361,6 +374,7 @@ async function saveOrder() {
           .from('orders')
           .update({ 
             customer_address: address, 
+            customer_phone: phone,
             urgency, 
             items, 
             created_by: createdBy, 
@@ -386,6 +400,7 @@ async function saveOrder() {
       const orderIndex = state.orders.findIndex(o => o.id === state.editingOrderId);
       if (orderIndex !== -1) {
         state.orders[orderIndex].customer_address = address;
+        state.orders[orderIndex].customer_phone = phone;
         state.orders[orderIndex].urgency = urgency;
         state.orders[orderIndex].items = items;
         state.orders[orderIndex].created_by = createdBy;
@@ -407,6 +422,7 @@ async function saveOrder() {
     const order = {
       id: generateId(),
       customer_address: address,
+      customer_phone: phone,
       urgency,
       status: "Bekliyor",
       created_by: createdBy,
@@ -467,6 +483,9 @@ function editOrder(orderId) {
 
   document.getElementById("order-address").value = order.customer_address;
   document.getElementById("order-urgency").value = order.urgency;
+  
+  const phoneEl = document.getElementById("order-phone");
+  if (phoneEl) phoneEl.value = order.customer_phone || "";
   
   const recipientEl = document.getElementById("order-recipient");
   if (recipientEl) recipientEl.value = order.recipient || "";
@@ -625,6 +644,7 @@ function renderBekliyorCard(o) {
     <div class="flex flex-col gap-0.5 text-[10px] text-slate-400 font-semibold uppercase">
       <span>👤 Temsilci: ${escapeHTML(o.created_by || "") || "—"}</span>
       <span class="text-indigo-600 dark:text-indigo-400 normal-case font-bold">🎯 Alıcı: ${escapeHTML(o.recipient || "") || "Genel"}</span>
+      ${o.customer_phone ? `<a href="tel:${o.customer_phone}" class="text-emerald-600 dark:text-emerald-400 normal-case font-bold flex items-center gap-0.5 mt-0.5 hover:underline">📞 Ara: ${escapeHTML(o.customer_phone)}</a>` : ""}
     </div>
     <div class="flex gap-2">
       <button onclick="openModal('${o.id}')" 
@@ -658,9 +678,12 @@ function renderHazirlaniyorCard(o) {
       </span>
       ${renderNavigationButton(o)}
     </p>
-    <div class="flex justify-between items-center text-[10px] text-slate-400 font-semibold uppercase mb-2.5">
-      <span>👤 Temsilci: ${escapeHTML(o.created_by || "") || "—"}</span>
-      <span class="text-indigo-600 dark:text-indigo-400 normal-case font-bold">🎯 Alıcı: ${escapeHTML(o.recipient || "") || "Genel"}</span>
+    <div class="flex flex-col gap-0.5 text-[10px] text-slate-400 font-semibold uppercase mb-2.5">
+      <div class="flex justify-between items-center w-full">
+        <span>👤 Temsilci: ${escapeHTML(o.created_by || "") || "—"}</span>
+        <span class="text-indigo-600 dark:text-indigo-400 normal-case font-bold">🎯 Alıcı: ${escapeHTML(o.recipient || "") || "Genel"}</span>
+      </div>
+      ${o.customer_phone ? `<a href="tel:${o.customer_phone}" class="text-emerald-600 dark:text-emerald-400 normal-case font-bold flex items-center gap-0.5 mt-0.5 hover:underline">📞 Ara: ${escapeHTML(o.customer_phone)}</a>` : ""}
     </div>
     <p class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 bg-indigo-50 dark:bg-indigo-500/10 px-3 py-2 rounded-xl border border-indigo-100 dark:border-indigo-500/20">
       <svg class="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
@@ -779,7 +802,7 @@ function openModal(orderId) {
   state.currentModalOrder = order;
   
   document.getElementById("modal-address").textContent = order.customer_address;
-  document.getElementById("modal-picker").textContent = `👷 Hazırlayan: ${order.picked_by}`;
+  document.getElementById("modal-picker").innerHTML = `👷 Hazırlayan: ${order.picked_by || "—"} ${order.customer_phone ? `<a href="tel:${order.customer_phone}" class="ml-3 text-emerald-600 dark:text-emerald-400 font-bold hover:underline">📞 Ara: ${order.customer_phone}</a>` : ""}`;
 
   const badge = document.getElementById("modal-urgency-badge");
   badge.textContent = `${URGENCY_ICON[order.urgency]} ${order.urgency}`;
@@ -1501,10 +1524,13 @@ function renderYolaCikacakCard(o) {
     <p class="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/30 p-2 rounded-lg border border-slate-100 dark:border-slate-800 mb-2 truncate">
       <b>Taşınacak Ürünler:</b> ${itemSummary}
     </p>
-    <div class="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-400 font-semibold uppercase">
-      <span>👤 Temsilci: ${o.created_by || "—"}</span>
-      <span>🎯 Alıcı: ${o.recipient || "Genel"}</span>
-      <span>👷 Hazırlayan: ${o.picked_by || "—"}</span>
+    <div class="flex flex-col gap-0.5 text-[10px] text-slate-400 font-semibold uppercase">
+      <div class="flex flex-wrap gap-x-4 gap-y-1">
+        <span>👤 Temsilci: ${o.created_by || "—"}</span>
+        <span>🎯 Alıcı: ${o.recipient || "Genel"}</span>
+        <span>👷 Hazırlayan: ${o.picked_by || "—"}</span>
+      </div>
+      ${o.customer_phone ? `<a href="tel:${o.customer_phone}" class="text-emerald-600 dark:text-emerald-400 normal-case font-bold flex items-center gap-0.5 mt-0.5 hover:underline">📞 Ara: ${escapeHTML(o.customer_phone)}</a>` : ""}
     </div>
   </div>
   
@@ -1549,11 +1575,14 @@ function renderYoldaCard(o) {
     <p class="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/30 p-2 rounded-lg border border-slate-100 dark:border-slate-800 mb-2 truncate">
       <b>Yüklenen Malzeme:</b> ${itemSummary}
     </p>
-    <div class="grid grid-cols-2 gap-2 text-[10px] text-slate-400 font-semibold uppercase mb-3">
-      <div>🚛 Araç: <b class="text-slate-700 dark:text-slate-300 normal-case">${o.vehicle_plate || "—"}</b></div>
-      <div>👷 Hazırlayan: <span class="normal-case">${o.picked_by || "—"}</span></div>
-      <div>👤 Temsilci: <span class="normal-case">${o.created_by || "—"}</span></div>
-      <div>🎯 Alıcı: <span class="normal-case">${o.recipient || "Genel"}</span></div>
+    <div class="flex flex-col gap-0.5 text-[10px] text-slate-400 font-semibold uppercase mb-3">
+      <div class="grid grid-cols-2 gap-2">
+        <div>🚛 Araç: <b class="text-slate-700 dark:text-slate-300 normal-case">${o.vehicle_plate || "—"}</b></div>
+        <div>👷 Hazırlayan: <span class="normal-case">${o.picked_by || "—"}</span></div>
+        <div>👤 Temsilci: <span class="normal-case">${o.created_by || "—"}</span></div>
+        <div>🎯 Alıcı: <span class="normal-case">${o.recipient || "Genel"}</span></div>
+      </div>
+      ${o.customer_phone ? `<a href="tel:${o.customer_phone}" class="text-emerald-600 dark:text-emerald-400 normal-case font-bold flex items-center gap-0.5 mt-1 hover:underline">📞 Ara: ${escapeHTML(o.customer_phone)}</a>` : ""}
     </div>
     <div class="flex items-center justify-between bg-amber-50 dark:bg-amber-500/5 px-3 py-2 rounded-xl border border-amber-200/50 dark:border-amber-500/10">
       <span class="text-xs font-bold text-amber-800 dark:text-amber-400 flex items-center gap-1">
@@ -2069,9 +2098,10 @@ function openAddressPickerMap() {
   
   const lat = state.pickerLat || 41.0082; // Varsayılan İstanbul
   const lng = state.pickerLng || 28.9784;
+  const zoom = state.pickerLat ? 16 : 12; // Koordinat varsa yakınlaş
   
   if (!state.pickerMapInstance) {
-    state.pickerMapInstance = L.map('picker-map').setView([lat, lng], 12);
+    state.pickerMapInstance = L.map('picker-map').setView([lat, lng], zoom);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -2082,7 +2112,7 @@ function openAddressPickerMap() {
       setPickerMarker(e.latlng.lat, e.latlng.lng);
     });
   } else {
-    state.pickerMapInstance.setView([lat, lng], 12);
+    state.pickerMapInstance.setView([lat, lng], zoom);
   }
 
   if (state.pickerLat && state.pickerLng) {
@@ -2427,6 +2457,171 @@ function switchAdminSubTab(subTab) {
     if (adminTitle) adminTitle.textContent = "Yönetici Paneli (Son Aktiviteler)";
     if (btnAttendanceLogs) btnAttendanceLogs.className = activeClass;
     if (typeof loadAttendanceLogs === "function") loadAttendanceLogs();
+  }
+}
+
+// Adres değiştiğinde otomatik link/koordinat tespiti yapar
+async function parseAndLookupAddress() {
+  const addressText = document.getElementById("order-address").value.trim();
+  const openLinkBtn = document.getElementById("btn-open-address-link");
+  
+  if (!addressText) {
+    if (openLinkBtn) openLinkBtn.classList.add("hidden");
+    return;
+  }
+
+  const isLink = addressText.startsWith("http://") || addressText.startsWith("https://") || addressText.includes("maps.apple") || addressText.includes("apple.com") || addressText.includes("yandex.") || addressText.includes("goo.gl");
+
+  if (openLinkBtn) {
+    if (isLink) {
+      openLinkBtn.classList.remove("hidden");
+    } else {
+      openLinkBtn.classList.add("hidden");
+    }
+  }
+
+  const latLng = extractLatLng(addressText);
+  if (latLng) {
+    state.pickerLat = latLng.lat;
+    state.pickerLng = latLng.lng;
+    showToast(`📍 Konum otomatik algılandı: ${latLng.lat.toFixed(4)}, ${latLng.lng.toFixed(4)}`, "success");
+    
+    // Koordinatı düz metin adresine çevir (Ters Coğrafi Kodlama)
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latLng.lat}&lon=${latLng.lng}&accept-language=tr`);
+      const data = await response.json();
+      if (data && data.display_name) {
+        document.getElementById("order-address").value = data.display_name;
+      }
+    } catch (e) {
+      console.warn("Ters adres çözümleme başarısız:", e);
+    }
+  } else if (isLink) {
+    showToast("ℹ️ Harita kısa linki algılandı. Yol tarifi için doğrudan bu link kullanılacaktır.", "success");
+  }
+}
+
+// Regex ile Google, Yandex, Apple Maps linki veya koordinat çifti ayıklar
+function extractLatLng(text) {
+  // Google Maps
+  const googleMapsRegex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+  const googleMapsQueryRegex = /[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/;
+  
+  // Apple Maps
+  const appleMapsRegex = /[?&]s?ll=(-?\d+\.\d+),(-?\d+\.\d+)/;
+  
+  // Yandex Maps (Yandex ll parametresinde önce boylam/lng, sonra enlem/lat verir)
+  const yandexMapsRegex = /[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)/;
+  const yandexTextRegex = /[?&]text=(-?\d+\.\d+),(-?\d+\.\d+)/;
+
+  // Doğrudan Koordinat
+  const coordRegex = /^(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)$/;
+  const coordRegexSpace = /^(-?\d+\.\d+)\s+(-?\d+\.\d+)$/;
+
+  // Google Maps Kontrolü
+  let match = text.match(googleMapsRegex) || text.match(googleMapsQueryRegex);
+  if (match) return { lat: parseFloat(match[1]), lng: parseFloat(match[2]) };
+
+  // Apple Maps Kontrolü
+  if (text.includes("apple.com")) {
+    match = text.match(appleMapsRegex);
+    if (match) return { lat: parseFloat(match[1]), lng: parseFloat(match[2]) };
+  }
+
+  // Yandex Maps Kontrolü (ll parametresi için ters okuma: [2] lat, [1] lng)
+  if (text.includes("yandex.com") || text.includes("yandex.ru") || text.includes("yandex.com.tr")) {
+    match = text.match(yandexMapsRegex);
+    if (match) return { lat: parseFloat(match[2]), lng: parseFloat(match[1]) };
+    
+    match = text.match(yandexTextRegex);
+    if (match) return { lat: parseFloat(match[1]), lng: parseFloat(match[2]) };
+  }
+
+  // Doğrudan koordinat kontrolü
+  match = text.match(coordRegex) || text.match(coordRegexSpace);
+  if (match) return { lat: parseFloat(match[1]), lng: parseFloat(match[2]) };
+
+  return null;
+}
+
+// Adres metnini sadeleştirir (Kat, No, posta kodu gibi Nominatim'i şaşırtan kısımları temizler)
+function simplifyAddress(addr) {
+  let clean = addr;
+  // Posta kodlarını kaldır (5 haneli rakamlar)
+  clean = clean.replace(/\b\d{5}\b/g, "");
+  // Kat:5, Kat 5, No:117, Daire:3, D:4, K:2, No.12 vb. temizle
+  clean = clean.replace(/(kat|daire|apt|apartmanı|apartman|blok|no|nolu|d:|k:)\s*[:.]?\s*\d+/gi, "");
+  // Tek başına kalan kelimeleri temizle
+  clean = clean.replace(/\b(kat|daire|no|apt|apartman|blok)\b/gi, "");
+  // Virgül, tire ve eğik çizgileri boşluğa çevir
+  clean = clean.replace(/[,.\-\/]/g, " ");
+  // Fazla boşlukları temizle
+  clean = clean.replace(/\s+/g, " ").trim();
+  return clean;
+}
+
+// Metinsel adresi haritada aratıp koordinatını bulur (Kademeli Fallback Arama ile)
+async function lookupAddressGeocode() {
+  const addressText = document.getElementById("order-address").value.trim();
+  if (!addressText) {
+    showToast("Lütfen önce bir adres metni yazın!", "warning");
+    return;
+  }
+
+  const isLink = addressText.startsWith("http://") || addressText.startsWith("https://") || addressText.includes("maps.apple") || addressText.includes("apple.com") || addressText.includes("yandex.") || addressText.includes("goo.gl");
+  if (isLink) {
+    showToast("🔗 Harita linkleri doğrudan kaydedilebilir, haritada aranmasına gerek yoktur.", "info");
+    return;
+  }
+
+  showToast("Adres haritada aranıyor...", "info");
+
+  try {
+    // 1. Aşama: Orijinal adresi tam olarak dene
+    let response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressText)}&accept-language=tr&limit=1`);
+    let data = await response.json();
+    
+    // 2. Aşama: Bulunamadıysa adresi sadeleştirip tekrar dene
+    if (!data || data.length === 0) {
+      const simplified = simplifyAddress(addressText);
+      if (simplified && simplified !== addressText) {
+        console.log("Adres sadeleştirilerek yeniden aranıyor:", simplified);
+        response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(simplified)}&accept-language=tr&limit=1`);
+        data = await response.json();
+      }
+    }
+
+    if (data && data.length > 0) {
+      const lat = parseFloat(data[0].lat);
+      const lng = parseFloat(data[0].lon);
+      
+      state.pickerLat = lat;
+      state.pickerLng = lng;
+      
+      showToast(`📍 Adres başarıyla çözüldü ve haritada işaretlendi!`, "success");
+      
+      // Eğer Leaflet haritası bellekte yüklüyse ve marker tanımlıysa oraya da odaklanması sağlanabilir
+      if (window.addressPickerMap && window.addressPickerMarker) {
+        const latlng = [lat, lng];
+        window.addressPickerMarker.setLatLng(latlng);
+        window.addressPickerMap.setView(latlng, 16);
+      }
+    } else {
+      showToast("Adres haritada bulunamadı. Lütfen apartman/kat/no girmeden sadece sokak, mahalle ve ilçe yazıp tekrar deneyin.", "warning");
+    }
+  } catch (e) {
+    console.error("Adres arama hatası:", e);
+    showToast("Adres aranırken bir hata oluştu!", "error");
+  }
+}
+
+// Yapıştırılan harita bağlantısını yeni sekmede açar
+function openDirectAddressLink() {
+  const addressText = document.getElementById("order-address").value.trim();
+  if (addressText.startsWith("http://") || addressText.startsWith("https://") || addressText.includes("maps.apple") || addressText.includes("apple.com") || addressText.includes("yandex.") || addressText.includes("goo.gl")) {
+    window.open(addressText, "_blank");
+  } else {
+    showToast("Adres alanında geçerli bir harita linki bulunamadı!", "warning");
   }
 }
 
