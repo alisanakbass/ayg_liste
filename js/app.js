@@ -161,7 +161,7 @@ async function syncWithSupabase(triggerUI = true) {
     // Profilleri çek
     const { data: dbProfiles, error: profilesErr } = await supabaseClient
       .from("profiles")
-      .select("name, is_admin");
+      .select("*");
 
     if (profilesErr) throw profilesErr;
 
@@ -178,6 +178,7 @@ async function syncWithSupabase(triggerUI = true) {
 
     // State'i güncelle
     state.orders = dbOrders || [];
+    state.profilesDetail = dbProfiles || [];
     state.profiles = (dbProfiles || []).map(p => p.name);
     state.adminProfiles = (dbProfiles || []).filter(p => p.is_admin).map(p => p.name);
     state.vehicles = dbVehicles || [];
@@ -329,6 +330,77 @@ function closeSettingsModal() {
   if (modal) modal.classList.add("hidden");
 }
 
+// Aktif Supabase Oturumunu Kontrol Et ve UI'ı Güncelle
+async function checkAuthSession() {
+  if (!supabaseClient) {
+    const lockScreen = document.getElementById("app-lock-screen");
+    if (lockScreen) lockScreen.classList.remove("hidden");
+    return;
+  }
+
+  try {
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
+    if (error) throw error;
+
+    const lockScreen = document.getElementById("app-lock-screen");
+    const profileScreen = document.getElementById("profile-screen");
+    const mainApp = document.getElementById("main-app");
+
+    if (session && session.user) {
+      const email = session.user.email;
+      let userName = "Personel";
+      const isAdmin = email.toLowerCase().startsWith("admin");
+
+      if (isAdmin) {
+        userName = "Admin";
+      } else {
+        userName = email.split("@")[0];
+        userName = userName.charAt(0).toUpperCase() + userName.slice(1);
+      }
+
+      // Kilit ekranını gizle
+      if (lockScreen) lockScreen.classList.add("hidden");
+
+      if (isAdmin) {
+        // Admin ise: Eğer daha önce bir aktif kullanıcı seçilmemişse profil seçme ekranını göster
+        if (!state.activeUser) {
+          if (profileScreen) profileScreen.classList.remove("hidden");
+          if (mainApp) mainApp.classList.add("hidden");
+          if (typeof renderProfiles === "function") renderProfiles();
+        } else {
+          // Zaten seçilmişse doğrudan ana uygulamayı göster
+          if (profileScreen) profileScreen.classList.add("hidden");
+          if (mainApp) mainApp.classList.remove("hidden");
+          const headerUser = document.getElementById("header-username");
+          if (headerUser) headerUser.textContent = state.activeUser;
+        }
+      } else {
+        // Normal personel ise: Profil ekranını atla, doğrudan kendi profiliyle gir
+        state.activeUser = userName;
+        saveState();
+
+        if (profileScreen) profileScreen.classList.add("hidden");
+        if (mainApp) mainApp.classList.remove("hidden");
+        const headerUser = document.getElementById("header-username");
+        if (headerUser) headerUser.textContent = userName;
+      }
+    } else {
+      // Oturum yok, kilitle
+      state.activeUser = null;
+      saveState();
+
+      if (lockScreen) lockScreen.classList.remove("hidden");
+      if (profileScreen) profileScreen.classList.add("hidden");
+      if (mainApp) mainApp.classList.add("hidden");
+    }
+  } catch (e) {
+    console.error("Oturum kontrol hatası:", e);
+    state.activeUser = null;
+    const lockScreen = document.getElementById("app-lock-screen");
+    if (lockScreen) lockScreen.classList.remove("hidden");
+  }
+}
+
 // =============================================
 // APP INIT
 // =============================================
@@ -351,12 +423,41 @@ async function init() {
     }
   }
 
+  // Supabase Auth Değişikliklerini Dinle ve Oturumu Kontrol Et
   if (supabaseClient) {
+    // İlk açılışta oturumu doğrula
+    await checkAuthSession();
+
+    // Oturum değişikliklerini dinle
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      console.log("Supabase Auth Event:", event);
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        await checkAuthSession();
+      } else if (event === "SIGNED_OUT") {
+        state.activeUser = null;
+        saveState();
+        
+        const lockScreen = document.getElementById("app-lock-screen");
+        if (lockScreen) lockScreen.classList.remove("hidden");
+        const profileScreen = document.getElementById("profile-screen");
+        if (profileScreen) profileScreen.classList.add("hidden");
+        const mainApp = document.getElementById("main-app");
+        if (mainApp) mainApp.classList.add("hidden");
+        
+        showToast("Oturum sonlandırıldı.", "info");
+      }
+    });
+
     // Supabase bağlıysa bulutla eşle ve dinlemeye başla
     await syncWithSupabase(true);
     initSupabaseRealtime();
+  } else {
+    // Yerel modda veya bağlantı yoksa kilit ekranını göster
+    const lockScreen = document.getElementById("app-lock-screen");
+    if (lockScreen) lockScreen.classList.remove("hidden");
   }
 
+  // Aktif kullanıcı varsa UI'ı başlat
   if (state.activeUser) {
     const mainApp = document.getElementById("main-app");
     if (mainApp) mainApp.classList.remove("hidden");
@@ -379,7 +480,7 @@ async function init() {
       setTimeout(subscribeUserToPush, 2000);
     }
   } else {
-    if (typeof showProfileScreen === "function") showProfileScreen();
+    if (!supabaseClient && typeof showProfileScreen === "function") showProfileScreen();
   }
 }
 
@@ -445,6 +546,16 @@ function updateAdminUI() {
       fabBtnAdmin.classList.remove("hidden");
     } else {
       fabBtnAdmin.classList.add("hidden");
+    }
+  }
+
+  // Profil Değiştirme Butonu Kontrolü (Sadece Admin görebilir)
+  const btnChangeProfile = document.getElementById("btn-change-profile");
+  if (btnChangeProfile) {
+    if (isSuper) {
+      btnChangeProfile.classList.remove("hidden");
+    } else {
+      btnChangeProfile.classList.add("hidden");
     }
   }
 }
@@ -604,26 +715,8 @@ async function verifyLockScreenPassword() {
     
     if (error) throw error;
     
-    // Başarılı giriş
-    localStorage.setItem("ayg-access-authorized", "true");
-    
-    let userName = "Personel";
-    if (email.toLowerCase().startsWith("admin")) {
-      userName = "Admin";
-    } else {
-      userName = email.split("@")[0];
-      userName = userName.charAt(0).toUpperCase() + userName.slice(1);
-    }
-    
-    state.activeUser = userName;
-    saveState();
-    
-    const lockScreen = document.getElementById("app-lock-screen");
-    if (lockScreen) lockScreen.classList.add("hidden");
-    
-    showToast(`Hoş geldiniz, ${userName}!`, "success");
-    
-    if (typeof init === "function") init();
+    await checkAuthSession();
+    showToast("Giriş başarılı!", "success");
   } catch (e) {
     console.error("Giriş hatası:", e);
     showToast("E-posta veya şifre hatalı!", "error");
@@ -635,21 +728,22 @@ async function verifyLockScreenPassword() {
 
 // Oturumu Kapat ve Sistemi Kilitle
 async function logoutAdmin() {
-  localStorage.removeItem("ayg-access-authorized");
   state.activeUser = null;
   saveState();
   if (supabaseClient) {
     try {
       await supabaseClient.auth.signOut();
-    } catch(e) {}
+    } catch(e) {
+      console.error("Supabase çıkış hatası:", e);
+    }
+  } else {
+    const lockScreen = document.getElementById("app-lock-screen");
+    if (lockScreen) lockScreen.classList.remove("hidden");
+    const profileScreen = document.getElementById("profile-screen");
+    if (profileScreen) profileScreen.classList.add("hidden");
+    const mainApp = document.getElementById("main-app");
+    if (mainApp) mainApp.classList.add("hidden");
   }
-  const lockScreen = document.getElementById("app-lock-screen");
-  if (lockScreen) lockScreen.classList.remove("hidden");
-  const profileScreen = document.getElementById("profile-screen");
-  if (profileScreen) profileScreen.classList.add("hidden");
-  const mainApp = document.getElementById("main-app");
-  if (mainApp) mainApp.classList.add("hidden");
-  showToast("Oturum kapatıldı ve sistem kilitlendi.", "info");
 }
 
 // TELEFONLAR İÇİN DİNAMİK YÖNLENDİRME (FAB & MENU) İŞLEMLERİ
@@ -684,4 +778,10 @@ function handleFabTab(tab) {
     switchTab(tab);
   }
   toggleFabMenu(); // Seçim sonrası menüyü kapat
+}
+
+function confirmLogout() {
+  if (confirm("Oturumu kapatmak ve sistemden çıkış yapmak istediğinize emin misiniz?")) {
+    logoutAdmin();
+  }
 }

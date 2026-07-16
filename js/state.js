@@ -33,14 +33,7 @@ let state = {
 let supabaseClient = null;
 
 function loadState() {
-  // Yönetici Kilit Ekranı Kontrolü
-  const isAuthorized = localStorage.getItem("ayg-access-authorized") === "true";
-  const lockScreen = document.getElementById("app-lock-screen");
-  if (isAuthorized) {
-    if (lockScreen) lockScreen.classList.add("hidden");
-  } else {
-    if (lockScreen) lockScreen.classList.remove("hidden");
-  }
+  // Oturum yönetimi Supabase Auth üzerinden asenkron yönetileceği için local storage tabanlı kilit kontrolü kaldırıldı.
 
   const saved = localStorage.getItem("ayg-state");
   if (saved) {

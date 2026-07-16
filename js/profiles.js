@@ -322,7 +322,17 @@ function renderAdminProfiles() {
   const container = document.getElementById("admin-profile-list");
   if (!container) return;
   
-  const displayProfiles = state.profiles.filter(p => p !== "Admin");
+  const profilesList = (state.profilesDetail && state.profilesDetail.length > 0)
+    ? state.profilesDetail
+    : state.profiles.map(name => ({
+        id: name,
+        name: name,
+        email: name.toLowerCase() + "@ayg.com",
+        is_admin: state.adminProfiles && state.adminProfiles.includes(name),
+        photo: null
+      }));
+
+  const displayProfiles = profilesList.filter(p => p.name !== "Admin");
   
   if (displayProfiles.length === 0) {
     container.innerHTML = `<p class="p-4 text-center text-xs text-slate-400">Hiç personel bulunamadı.</p>`;
@@ -333,75 +343,45 @@ function renderAdminProfiles() {
 
   container.innerHTML = displayProfiles
     .map(
-      (name) => {
-        const isAdmin = state.adminProfiles && state.adminProfiles.includes(name);
-        const isEditing = name === editingProfileName;
+      (profile) => {
+        const { id, name, email, is_admin: isAdmin, photo } = profile;
         
-        if (isEditing) {
-          return `
-      <div class="flex items-center justify-between p-3.5 bg-indigo-50/20 dark:bg-indigo-950/20 border-l-4 border-indigo-500 animate-slide-in gap-3">
-        <div class="flex-1 flex gap-2">
-          <input
-            id="edit-profile-input-${name}"
-            type="text"
-            value="${escapeHTML(name)}"
-            class="flex-1 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-white border border-slate-350 focus:border-indigo-500 focus:outline-none text-xs font-semibold"
-            onkeypress="if (event.key === 'Enter') saveProfileNameUpdate('${name}');"
-          />
-        </div>
-        <div class="flex items-center gap-1.5 shrink-0">
-          <button
-            onclick="saveProfileNameUpdate('${name}')"
-            class="p-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-all active:scale-95 cursor-pointer shadow flex items-center justify-center w-7 h-7"
-            title="Kaydet"
-          >
-            ✓
-          </button>
-          <button
-            onclick="cancelProfileNameUpdate()"
-            class="p-2 bg-slate-400 hover:bg-slate-500 text-white rounded-lg text-xs font-bold transition-all active:scale-95 cursor-pointer shadow flex items-center justify-center w-7 h-7"
-            title="İptal"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
-          `;
-        }
+        const photoHtml = photo 
+          ? `<img src="${photo}" class="w-8 h-8 rounded-lg object-cover shadow-sm" alt="${escapeHTML(name)}" />`
+          : `<div class="w-8 h-8 ${isAdmin ? 'bg-amber-600/10 text-amber-600 dark:text-amber-400' : 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-400'} rounded-lg flex items-center justify-center font-bold text-sm shadow-sm">${escapeHTML(name.charAt(0).toUpperCase())}</div>`;
 
         const privilegeButton = isSuperAdmin 
           ? `<button
-              onclick="toggleAdminPrivilege('${name}', event)"
+              onclick="toggleAdminPrivilege('${escapeHTML(name)}', event)"
               class="px-2.5 py-1.5 ${isAdmin ? 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300' : 'bg-amber-500 hover:bg-amber-600 text-white'} rounded-lg font-bold text-xs transition-all active:scale-95 flex items-center gap-1 cursor-pointer border border-transparent"
               title="${isAdmin ? 'Yönetici Yetkisini Kaldır' : 'Yönetici Yetkisi Ver'}"
             >
-              ${isAdmin ? '🛡️ Yetkiyi Kaldır' : '👑 Yönetici Yap'}
+              ${isAdmin ? '🛡️ Yetki Kaldır' : '👑 Yönetici Yap'}
             </button>`
           : "";
 
         return `
       <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors animate-slide-in gap-3 group">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 ${isAdmin ? 'bg-amber-600/10 text-amber-650 dark:text-amber-400' : 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-400'} rounded-lg flex items-center justify-center font-bold text-sm">
-            ${isAdmin ? '👑' : escapeHTML(name.charAt(0).toUpperCase())}
-          </div>
+          ${photoHtml}
           <div class="flex flex-col">
             <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">${escapeHTML(name)}</span>
-            ${isAdmin ? '<span class="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">Yönetici</span>' : ''}
+            <span class="text-[10px] text-slate-400 dark:text-slate-500">${escapeHTML(email || '')}</span>
+            ${isAdmin ? '<span class="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider mt-0.5">Yönetici</span>' : ''}
           </div>
         </div>
         <div class="flex items-center gap-2 self-end sm:self-auto opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           ${privilegeButton}
           <button
-            onclick="startProfileNameUpdate('${name}')"
+            onclick="openEditPersonnelModal('${id}')"
             class="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-650 dark:text-slate-300 rounded-lg font-bold text-xs transition-all active:scale-95 flex items-center gap-1 cursor-pointer"
-            title="İsmi Düzenle"
+            title="Personeli Düzenle"
           >
             ✏️ Düzenle
           </button>
           <button
-            onclick="confirmDeleteProfile('${name}', event)"
-            class="px-2.5 py-1.5 bg-red-50 dark:bg-red-500/10 text-red-650 dark:text-red-400 hover:bg-red-600 hover:text-white rounded-lg font-bold text-xs transition-all active:scale-95 flex items-center gap-1 cursor-pointer"
+            onclick="deletePersonnel('${id}', '${escapeHTML(name)}')"
+            class="px-2.5 py-1.5 bg-red-50 dark:bg-red-500/10 text-red-655 dark:text-red-400 hover:bg-red-600 hover:text-white rounded-lg font-bold text-xs transition-all active:scale-95 flex items-center gap-1 cursor-pointer"
             title="Personeli Sil"
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -449,7 +429,6 @@ async function toggleAdminPrivilege(name, event) {
       showToast("Bulutta yetki güncellenemedi!", "error");
     }
   } else {
-    // Local / Çevrimdışı mod
     if (isCurrentlyAdmin) {
       state.adminProfiles = state.adminProfiles.filter(p => p !== name);
     } else {
@@ -459,5 +438,357 @@ async function toggleAdminPrivilege(name, event) {
     renderProfiles();
     renderAdminProfiles();
     showToast(`"${name}" adlı personelin yetkisi yerel olarak güncellendi!`, "success");
+  }
+}
+
+// Görseli İstemcide Yeniden Boyutlandıran ve Sıkıştıran Helper
+function resizeAndCompressImage(file, maxWidth = 120, maxHeight = 120, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // En boy oranını koruyarak yeniden boyutlandırma
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // JPEG formatında sıkıştırıp base64 olarak alıyoruz
+        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedBase64);
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+}
+
+// Dosya Seçici Değişikliğini Dinle (Ekleme Formu)
+let personnelAddPhotoBase64 = null;
+function handleAddPersonnelPhotoSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  if (file.size > 5 * 1024 * 1024) { // Limit 5MB (Bunu zaten sıkıştıracağız ama çok büyük dosyaları tarayıcı kasmasın diye engelliyoruz)
+    showToast("Profil fotoğrafı boyutu en fazla 5MB olabilir!", "warning");
+    event.target.value = "";
+    return;
+  }
+
+  showToast("Fotoğraf optimize ediliyor...", "info");
+
+  resizeAndCompressImage(file, 120, 120, 0.7).then(compressedBase64 => {
+    personnelAddPhotoBase64 = compressedBase64;
+    showToast("Profil fotoğrafı optimize edildi ve eklendi.", "success");
+  }).catch(err => {
+    console.error("Görsel optimizasyon hatası:", err);
+    showToast("Görsel optimize edilemedi!", "error");
+  });
+}
+
+// Dosya Seçici Değişikliğini Dinle (Düzenleme Formu)
+let personnelEditPhotoBase64 = undefined;
+function handleEditPersonnelPhotoSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  if (file.size > 5 * 1024 * 1024) {
+    showToast("Profil fotoğrafı boyutu en fazla 5MB olabilir!", "warning");
+    event.target.value = "";
+    return;
+  }
+
+  showToast("Fotoğraf optimize ediliyor...", "info");
+
+  resizeAndCompressImage(file, 120, 120, 0.7).then(compressedBase64 => {
+    personnelEditPhotoBase64 = compressedBase64;
+    showToast("Yeni profil fotoğrafı optimize edildi.", "success");
+  }).catch(err => {
+    console.error("Görsel optimizasyon hatası:", err);
+    showToast("Görsel optimize edilemedi!", "error");
+  });
+}
+
+// Yeni Personel Ekle (Admin Yetkisiyle)
+async function submitAddPersonnel() {
+  if (!isAdminUser()) {
+    showToast("Personel ekleme yetkiniz yok!", "error");
+    return;
+  }
+
+  const nameInput = document.getElementById("admin-new-profile-input");
+  const emailInput = document.getElementById("admin-new-profile-email");
+  const passwordInput = document.getElementById("admin-new-profile-password");
+  const switchEl = document.getElementById("admin-new-profile-is-admin");
+  const photoInput = document.getElementById("admin-new-profile-photo");
+
+  if (!nameInput || !emailInput || !passwordInput) return;
+
+  const name = nameInput.value.trim();
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+  const isAdmin = switchEl ? switchEl.checked : false;
+
+  if (!name || !email || !password) {
+    showToast("Ad Soyad, E-posta ve Şifre zorunludur!", "warning");
+    return;
+  }
+
+  if (password.length < 6) {
+    showToast("Şifre en az 6 karakter olmalıdır!", "warning");
+    return;
+  }
+
+  if (!supabaseClient) {
+    showToast("Bulut bağlantısı yok, personel oluşturulamaz.", "error");
+    return;
+  }
+
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+      showToast("Oturumunuz kapandı. Lütfen tekrar giriş yapın.", "error");
+      return;
+    }
+
+    showToast(`"${name}" personeli oluşturuluyor...`, "info");
+
+    const response = await fetch('/.netlify/functions/manage-personnel', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({
+        action: 'create',
+        name,
+        email,
+        password,
+        isAdmin,
+        photo: personnelAddPhotoBase64
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Personel eklenemedi.");
+    }
+
+    showToast(`"${name}" personeli başarıyla oluşturuldu!`, "success");
+
+    nameInput.value = "";
+    emailInput.value = "";
+    passwordInput.value = "";
+    if (switchEl) switchEl.checked = false;
+    if (photoInput) photoInput.value = "";
+    personnelAddPhotoBase64 = null;
+
+    await syncWithSupabase(true);
+  } catch (err) {
+    console.error("Personel ekleme hatası:", err);
+    showToast(err.message, "error");
+  }
+}
+
+// Personel Sil (Admin Yetkisiyle)
+async function deletePersonnel(id, name) {
+  if (!isAdminUser()) {
+    showToast("Personel silme yetkiniz yok!", "error");
+    return;
+  }
+
+  if (name === "Admin") {
+    showToast("Süper Admin silinemez!", "error");
+    return;
+  }
+
+  if (!confirm(`"${name}" adlı personeli ve ilişkili kullanıcı hesabını silmek istediğinize emin misiniz?`)) {
+    return;
+  }
+
+  if (!supabaseClient) {
+    showToast("Bulut bağlantısı yok, personel silinemez.", "error");
+    return;
+  }
+
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+      showToast("Oturumunuz kapandı. Lütfen tekrar giriş yapın.", "error");
+      return;
+    }
+
+    showToast("Personel siliniyor...", "info");
+
+    const response = await fetch('/.netlify/functions/manage-personnel', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({
+        action: 'delete',
+        id: id
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Personel silinemedi.");
+    }
+
+    showToast(`"${name}" personeli başarıyla silindi.`, "success");
+    
+    if (state.activeUser === name) {
+      state.activeUser = null;
+      saveState();
+    }
+
+    await syncWithSupabase(true);
+
+    if (!state.activeUser) {
+      if (typeof showProfileScreen === "function") showProfileScreen();
+    }
+  } catch (err) {
+    console.error("Personel silme hatası:", err);
+    showToast(err.message, "error");
+  }
+}
+
+// Düzenleme Modalı Aç/Kapa
+async function openEditPersonnelModal(id) {
+  const modal = document.getElementById("edit-personnel-modal");
+  const idInput = document.getElementById("edit-personnel-id");
+  const nameInput = document.getElementById("edit-personnel-name");
+  const emailInput = document.getElementById("edit-personnel-email");
+  const passwordInput = document.getElementById("edit-personnel-password");
+  const switchEl = document.getElementById("edit-personnel-is-admin");
+  const photoInput = document.getElementById("edit-personnel-photo");
+
+  if (!modal || !idInput || !nameInput || !emailInput || !passwordInput) {
+    showToast("Arayüz elemanları yüklenemedi!", "error");
+    return;
+  }
+
+  const profile = state.profilesDetail.find(p => p.id === id);
+  if (!profile) {
+    showToast("Profil bulunamadı!", "error");
+    return;
+  }
+
+  idInput.value = profile.id;
+  nameInput.value = profile.name;
+  emailInput.value = profile.email || "";
+  passwordInput.value = "";
+  if (switchEl) switchEl.checked = !!profile.is_admin;
+  if (photoInput) photoInput.value = "";
+  
+  personnelEditPhotoBase64 = undefined;
+
+  modal.classList.remove("hidden");
+}
+
+function closeEditPersonnelModal() {
+  const modal = document.getElementById("edit-personnel-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+// Düzenleme Gönder
+async function submitEditPersonnel() {
+  const idInput = document.getElementById("edit-personnel-id");
+  const nameInput = document.getElementById("edit-personnel-name");
+  const emailInput = document.getElementById("edit-personnel-email");
+  const passwordInput = document.getElementById("edit-personnel-password");
+  const switchEl = document.getElementById("edit-personnel-is-admin");
+
+  if (!idInput || !nameInput || !emailInput || !passwordInput) return;
+
+  const id = idInput.value;
+  const name = nameInput.value.trim();
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+  const isAdmin = switchEl ? switchEl.checked : false;
+
+  if (!name || !email) {
+    showToast("Ad Soyad ve E-posta zorunludur!", "warning");
+    return;
+  }
+
+  if (password && password.length < 6) {
+    showToast("Yeni şifre en az 6 karakter olmalıdır!", "warning");
+    return;
+  }
+
+  if (!supabaseClient) {
+    showToast("Bulut bağlantısı yok, personel güncellenemez.", "error");
+    return;
+  }
+
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+      showToast("Oturumunuz kapandı. Lütfen tekrar giriş yapın.", "error");
+      return;
+    }
+
+    showToast(`"${name}" bilgileri güncelleniyor...`, "info");
+
+    const updateBody = {
+      action: 'update',
+      id,
+      name,
+      email,
+      isAdmin,
+      photo: personnelEditPhotoBase64
+    };
+
+    if (password) {
+      updateBody.password = password;
+    }
+
+    const response = await fetch('/.netlify/functions/manage-personnel', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify(updateBody)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Personel güncellenemedi.");
+    }
+
+    showToast(`"${name}" personeli başarıyla güncellendi!`, "success");
+    closeEditPersonnelModal();
+
+    await syncWithSupabase(true);
+  } catch (err) {
+    console.error("Personel güncelleme hatası:", err);
+    showToast(err.message, "error");
   }
 }

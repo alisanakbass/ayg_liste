@@ -255,6 +255,9 @@ END $$;
 
 -- Profiles tablosuna yönetici yetkisi kolonu ekleme
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email TEXT UNIQUE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS photo TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS user_id UUID;
 
 -- Push Abonelikleri Tablosu
 CREATE TABLE IF NOT EXISTS public.push_subscriptions (

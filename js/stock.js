@@ -216,11 +216,62 @@ function renderStockPanel() {
   const container = document.getElementById("page-stock");
   if (!container) return;
 
-  // Ayrıştırma
+  const isSuper = isAdminUser();
+
+  // Aktif Listeler (Eksik ve Sipariş Verildi) - Doğrudan açık listelenecek
   const eksikList = state.stocks.filter(s => s.status === "Eksik");
   const siparisList = state.stocks.filter(s => s.status === "Sipariş Verildi");
-  // Arayüzün binlerce kayıtla şişmesini engellemek için en son tamamlanan 15 kaydı gösteriyoruz
-  const tamamlananList = state.stocks.filter(s => s.status === "Tamamlandı").slice(0, 15);
+  
+  // Tamamlananlar Listesi (Arşiv)
+  const tamamlananList = state.stocks.filter(s => s.status === "Tamamlandı");
+
+  // Arşiv açık/kapalı durumu (varsayılan: kapalı)
+  if (state.archiveExpanded === undefined) state.archiveExpanded = false;
+  const isArchiveExpanded = state.archiveExpanded;
+
+  // Arşiv arama ve filtre durumları
+  if (!state.archiveFilterPerson) state.archiveFilterPerson = "all";
+  if (!state.archiveFilterDate) state.archiveFilterDate = "all";
+  if (state.archiveSearchText === undefined) state.archiveSearchText = "";
+
+  const archiveSearchText = state.archiveSearchText;
+  const archiveFilterPerson = state.archiveFilterPerson;
+  const archiveFilterDate = state.archiveFilterDate;
+
+  // Benzersiz teslim alan personelleri çıkar
+  const uniquePersonnelInArchive = [...new Set(tamamlananList.map(s => s.received_by).filter(Boolean))];
+
+  // Tarih filtreleme hesaplamaları
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
+  const startOfLast7Days = new Date(startOfToday.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const startOfLast30Days = new Date(startOfToday.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  // Arşiv listesini filtrele (Arama + Personel + Tarih)
+  const filteredTamamlanan = tamamlananList.filter(s => {
+    const matchesSearch = s.product_name.toLowerCase().includes(archiveSearchText.toLowerCase());
+    
+    const matchesPerson = archiveFilterPerson === "all" || s.received_by === archiveFilterPerson;
+    
+    let matchesDate = true;
+    if (s.received_at) {
+      const recDate = new Date(s.received_at);
+      if (archiveFilterDate === "today") {
+        matchesDate = recDate >= startOfToday;
+      } else if (archiveFilterDate === "yesterday") {
+        matchesDate = recDate >= startOfYesterday && recDate < startOfToday;
+      } else if (archiveFilterDate === "last7") {
+        matchesDate = recDate >= startOfLast7Days;
+      } else if (archiveFilterDate === "last30") {
+        matchesDate = recDate >= startOfLast30Days;
+      }
+    } else {
+      if (archiveFilterDate !== "all") matchesDate = false;
+    }
+    
+    return matchesSearch && matchesPerson && matchesDate;
+  });
 
   container.innerHTML = `
     <!-- BAŞLIK VE FORM -->
@@ -279,7 +330,7 @@ function renderStockPanel() {
             document.getElementById('stock-req-qty').value,
             document.getElementById('stock-rem-qty').value
           )"
-          class="w-full bg-red-650 hover:bg-red-700 text-white py-3.5 rounded-xl font-bold hover:shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
+          class="w-full bg-red-600 hover:bg-red-700 text-white py-3.5 rounded-xl font-bold hover:shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
         >
           <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
           Eksik Bildirimini Gönder
@@ -287,32 +338,35 @@ function renderStockPanel() {
       </div>
     </div>
 
-    <!-- DURUM SÜTUNLARI -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+    <!-- NİZAMİ İKİ SÜTUN (EKSİK VE SİPARİŞ) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
       
-      <!-- SÜTUN 1: EKSİK STOKLAR -->
+      <!-- SÜTUN 1: EKSİK BİLDİRİLENLER -->
       <div class="space-y-4">
-        <h3 class="text-md font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+        <h3 class="text-md font-extrabold text-slate-700 dark:text-slate-300 flex items-center gap-2 text-left">
           <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
           <span>Eksik Bildirilenler</span>
           <span class="bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-xs px-2 py-0.5 rounded-full font-bold">
             ${eksikList.length}
           </span>
         </h3>
+        
         <div class="space-y-3">
           ${eksikList.length === 0 ? `
             <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-xs">
               Eksik bildirilmiş ürün bulunmuyor.
             </div>
           ` : eksikList.map(s => `
-            <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark space-y-3 relative group">
+            <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark space-y-3 relative group text-left">
               <button onclick="deleteStock('${s.id}')" class="absolute top-3 right-3 text-slate-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
               </button>
+              
               <div>
                 <h4 class="font-extrabold text-slate-800 dark:text-white text-sm pr-6">${escapeHTML(s.product_name)}</h4>
-                <p class="text-[10px] text-slate-400 mt-1">${formatDateRelative(s.created_at)} • ${escapeHTML(s.created_by)}</p>
+                <p class="text-[10px] text-slate-400 mt-1">🚨 Eksik Bildiren: <span class="font-semibold text-slate-500 dark:text-slate-400">${escapeHTML(s.created_by)}</span> • ${formatDateRelative(s.created_at)}</p>
               </div>
+              
               <div class="grid grid-cols-2 gap-2 text-center text-xs">
                 <div class="bg-slate-50 dark:bg-slate-900/40 p-2 rounded-xl">
                   <p class="text-slate-400 text-[10px] font-semibold">İstenilen</p>
@@ -323,9 +377,10 @@ function renderStockPanel() {
                   <p class="font-bold text-red-600 dark:text-red-400">${s.remaining_quantity} Adet</p>
                 </div>
               </div>
+
               <button
                 onclick="openOrderStockModal('${s.id}', '${escapeHTML(s.product_name)}', ${s.requested_quantity})"
-                class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
+                class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
               >
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
                 Sipariş Verildi Yap
@@ -337,27 +392,33 @@ function renderStockPanel() {
 
       <!-- SÜTUN 2: SİPARİŞ VERİLENLER -->
       <div class="space-y-4">
-        <h3 class="text-md font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+        <h3 class="text-md font-extrabold text-slate-700 dark:text-slate-300 flex items-center gap-2 text-left">
           <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
-          <span>Sipariş Verilenler</span>
+          <span>Sipariş Sürecindekiler</span>
           <span class="bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs px-2 py-0.5 rounded-full font-bold">
             ${siparisList.length}
           </span>
         </h3>
+        
         <div class="space-y-3">
           ${siparisList.length === 0 ? `
             <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-xs">
               Sipariş sürecinde ürün bulunmuyor.
             </div>
           ` : siparisList.map(s => `
-            <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark space-y-3 relative group">
+            <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark space-y-3 relative group text-left">
               <button onclick="deleteStock('${s.id}')" class="absolute top-3 right-3 text-slate-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
               </button>
+              
               <div>
                 <h4 class="font-extrabold text-slate-800 dark:text-white text-sm pr-6">${escapeHTML(s.product_name)}</h4>
-                <p class="text-[10px] text-slate-400 mt-1">Sipariş: ${formatDateRelative(s.ordered_at)} • ${escapeHTML(s.ordered_by)}</p>
+                <div class="text-[10px] text-slate-400 mt-1 space-y-0.5">
+                  <p>🚨 Eksik Bildiren: <span class="font-semibold text-slate-550 dark:text-slate-400">${escapeHTML(s.created_by)}</span> • ${formatDateRelative(s.created_at)}</p>
+                  <p>📦 Sipariş Veren: <span class="font-semibold text-slate-555 dark:text-slate-400">${escapeHTML(s.ordered_by)}</span> • ${formatDateRelative(s.ordered_at)}</p>
+                </div>
               </div>
+              
               <div class="grid grid-cols-2 gap-2 text-center text-xs">
                 <div class="bg-indigo-50 dark:bg-indigo-950/20 p-2 rounded-xl">
                   <p class="text-indigo-500/80 text-[10px] font-semibold">Sipariş Edilen</p>
@@ -368,6 +429,7 @@ function renderStockPanel() {
                   <p class="font-bold text-amber-600 dark:text-amber-400">${escapeHTML(s.estimated_delivery)}</p>
                 </div>
               </div>
+
               <button
                 onclick="openReceiveStockModal('${s.id}', '${escapeHTML(s.product_name)}', ${s.ordered_quantity})"
                 class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer shadow-md"
@@ -380,49 +442,151 @@ function renderStockPanel() {
         </div>
       </div>
 
-      <!-- SÜTUN 3: TAMAMLANANLAR / ARŞİV -->
-      <div class="space-y-4">
-        <h3 class="text-md font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-          <span>Tamamlananlar</span>
-          <span class="bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs px-2 py-0.5 rounded-full font-bold">
-            ${tamamlananList.length}
-          </span>
-        </h3>
-        <div class="space-y-3">
-          ${tamamlananList.length === 0 ? `
-            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-xs">
-              Tamamlanmış süreç bulunmuyor.
+    </div>
+
+    <!-- KATLANABİLİR TAMAMLANANLAR ARŞİVİ -->
+    <div class="pt-8 w-full">
+      <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark overflow-hidden transition-all duration-300">
+        
+        <!-- Arşiv Başlığı (Tıklanabilir) -->
+        <div
+          onclick="toggleArchivePanel()"
+          class="p-4 flex items-center justify-between cursor-pointer select-none bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-900/80 transition-all border-b border-slate-150 dark:border-slate-800"
+        >
+          <div class="flex items-center gap-2">
+            <span class="text-base">📜</span>
+            <h3 class="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+              Tamamlanan Ürünler Arşivi (${tamamlananList.length} Kayıt)
+            </h3>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400 font-semibold">${isArchiveExpanded ? 'Gizle' : 'Göster'}</span>
+            <svg id="archive-arrow" class="w-4 h-4 text-slate-400 transition-transform duration-200 ${isArchiveExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </div>
+        </div>
+
+        <!-- Arşiv İçeriği -->
+        <div id="archive-content" class="${isArchiveExpanded ? '' : 'hidden'} p-4 space-y-4">
+          
+          <!-- Gelişmiş Filtreleme Barı -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-900/40 p-3 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 text-left">
+            
+            <!-- Arama Kutusu -->
+            <div class="relative">
+              <label class="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 pl-1">Ürün Ara</label>
+              <input
+                id="archive-search-input"
+                type="text"
+                value="${escapeHTML(archiveSearchText)}"
+                placeholder="Ürün adı yazın..."
+                oninput="filterArchiveSearch(this.value)"
+                class="w-full border border-slate-250 dark:border-slate-755 bg-white dark:bg-slate-950/60 rounded-xl pl-8 pr-4 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-800 dark:text-white transition-all font-semibold"
+              />
+              <span class="absolute left-3 top-7 text-slate-400 text-xs">🔍</span>
             </div>
-          ` : tamamlananList.map(s => `
-            <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark space-y-3 relative group">
-              <button onclick="deleteStock('${s.id}')" class="absolute top-3 right-3 text-slate-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-              </button>
-              <div>
-                <h4 class="font-extrabold text-slate-800 dark:text-white text-sm line-through decoration-slate-400 pr-6">${escapeHTML(s.product_name)}</h4>
-                <p class="text-[10px] text-slate-400 mt-1">Geliş: ${formatDate(s.received_at)} • ${escapeHTML(s.received_by)}</p>
-              </div>
-              <div class="grid grid-cols-2 gap-2 text-center text-xs">
-                <div class="bg-slate-100 dark:bg-slate-900/30 p-2 rounded-xl">
-                  <p class="text-slate-400 text-[10px] font-semibold">Talep</p>
-                  <p class="font-bold text-slate-500">${s.requested_quantity} Adet</p>
-                </div>
-                <div class="bg-emerald-50 dark:bg-emerald-950/20 p-2 rounded-xl">
-                  <p class="text-emerald-500 text-[10px] font-semibold">Teslim Alınan</p>
-                  <p class="font-bold text-emerald-600 dark:text-emerald-400">${s.received_quantity} Adet</p>
-                </div>
-              </div>
+
+            <!-- Personel Filtresi -->
+            <div>
+              <label class="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 pl-1">Teslim Alan Personel</label>
+              <select
+                id="archive-person-select"
+                onchange="filterArchivePerson(this.value)"
+                class="w-full border border-slate-250 dark:border-slate-755 bg-white dark:bg-slate-950/60 rounded-xl px-3 py-2.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-800 dark:text-white transition-all font-bold cursor-pointer"
+              >
+                <option value="all" ${archiveFilterPerson === 'all' ? 'selected' : ''}>Tüm Personeller</option>
+                ${uniquePersonnelInArchive.map(p => `
+                  <option value="${escapeHTML(p)}" ${archiveFilterPerson === p ? 'selected' : ''}>${escapeHTML(p)}</option>
+                `).join("")}
+              </select>
             </div>
-          `).join("")}
+
+            <!-- Zaman Filtresi -->
+            <div>
+              <label class="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 pl-1">Tamamlanma Zamanı</label>
+              <select
+                id="archive-date-select"
+                onchange="filterArchiveDate(this.value)"
+                class="w-full border border-slate-250 dark:border-slate-755 bg-white dark:bg-slate-950/60 rounded-xl px-3 py-2.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-850 dark:text-white transition-all font-bold cursor-pointer"
+              >
+                <option value="all" ${archiveFilterDate === 'all' ? 'selected' : ''}>Tüm Zamanlar</option>
+                <option value="today" ${archiveFilterDate === 'today' ? 'selected' : ''}>Bugün</option>
+                <option value="yesterday" ${archiveFilterDate === 'yesterday' ? 'selected' : ''}>Dün</option>
+                <option value="last7" ${archiveFilterDate === 'last7' ? 'selected' : ''}>Son 7 Gün</option>
+                <option value="last30" ${archiveFilterDate === 'last30' ? 'selected' : ''}>Son 30 Gün</option>
+              </select>
+            </div>
+
+          </div>
+
+          <!-- Arşiv Kayıt Listesi -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto pr-1 no-scrollbar">
+            ${filteredTamamlanan.length === 0 ? `
+              <div class="col-span-full py-8 text-center text-slate-400 text-xs">
+                ${archiveSearchText ? 'Arama sonucuna uygun tamamlanmış kayıt bulunamadı.' : 'Henüz tamamlanmış bir ürün kaydı bulunmuyor.'}
+              </div>
+            ` : filteredTamamlanan.map(s => `
+              <div class="bg-slate-50/50 dark:bg-slate-900/10 border border-slate-200/60 dark:border-slate-800/40 p-4 rounded-xl relative group text-left space-y-3">
+                <button onclick="deleteStock('${s.id}')" class="absolute top-3 right-3 text-slate-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+                
+                <div>
+                  <h4 class="font-extrabold text-slate-750 dark:text-slate-300 text-xs line-through decoration-slate-400 pr-5">${escapeHTML(s.product_name)}</h4>
+                  <p class="text-[9px] text-slate-400 mt-1">Geliş Tarihi: ${formatDate(s.received_at)}</p>
+                </div>
+
+                <!-- Süreç Zaman Tüneli / Personeller -->
+                <div class="space-y-1 text-[10px] text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-950 p-2 rounded-lg border border-slate-200/50 dark:border-slate-800/50">
+                  <p>🚨 <span class="font-semibold text-slate-600 dark:text-slate-400">Bildiren:</span> ${escapeHTML(s.created_by)}</p>
+                  ${s.ordered_by ? `<p>📦 <span class="font-semibold text-slate-600 dark:text-slate-400">Sipariş:</span> ${escapeHTML(s.ordered_by)} (${s.ordered_quantity} Adet)</p>` : ''}
+                  <p>✅ <span class="font-semibold text-slate-600 dark:text-slate-400">Teslim Alan:</span> ${escapeHTML(s.received_by)} (${s.received_quantity} Adet)</p>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+
         </div>
       </div>
-
     </div>
   `;
 
   // Canlı arama önerilerini başlat
   initProductAutocomplete();
+}
+
+// Arşiv Panelini Göster / Gizle
+function toggleArchivePanel() {
+  state.archiveExpanded = !state.archiveExpanded;
+  saveState();
+  renderStockPanel();
+}
+
+// Arşiv Arama Metni Filtreleme
+function filterArchiveSearch(searchText) {
+  state.archiveSearchText = searchText;
+  renderStockPanel();
+  
+  const searchInput = document.getElementById("archive-search-input");
+  if (searchInput) {
+    searchInput.focus();
+    const val = searchInput.value;
+    searchInput.value = "";
+    searchInput.value = val;
+  }
+}
+
+// Arşiv Personel Filtreleme
+function filterArchivePerson(personName) {
+  state.archiveFilterPerson = personName;
+  saveState();
+  renderStockPanel();
+}
+
+// Arşiv Tarih Filtreleme
+function filterArchiveDate(dateRange) {
+  state.archiveFilterDate = dateRange;
+  saveState();
+  renderStockPanel();
 }
 
 // Canlı Arama (Autocomplete) Yönetimi
