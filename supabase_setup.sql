@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS public.orders (
     latitude NUMERIC,
     longitude NUMERIC,
     destination_lat NUMERIC,
-    destination_lng NUMERIC
+    destination_lng NUMERIC,
+    shipped_by TEXT
 );
 
 -- Row Level Security (RLS) Etkinleştirme
@@ -94,6 +95,7 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS latitude NUMERIC;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS longitude NUMERIC;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS destination_lat NUMERIC;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS destination_lng NUMERIC;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS shipped_by TEXT;
 
 -- Vehicles (Araçlar) tablosu tanımı
 CREATE TABLE IF NOT EXISTS public.vehicles (

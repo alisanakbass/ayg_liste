@@ -1675,7 +1675,8 @@ async function confirmShipping() {
             status: 'Yolda',
             shipped_at: shippedTime,
             vehicle_plate: selectedValue,
-            carried_material: materials
+            carried_material: materials,
+            shipped_by: state.activeUser
           })
           .eq('id', orderId);
         if (error) throw error;
@@ -1683,7 +1684,11 @@ async function confirmShipping() {
         showToast("🚀 Sevkiyat süreci başladı, araç yola çıktı!", "success");
         speakText(voiceMsg);
         closeShippingModal();
-        initDriverLocationTracking(orderId); // Konum takibini başlat!
+        if (typeof checkAndSyncLocationTracking === "function") {
+          checkAndSyncLocationTracking();
+        } else {
+          initDriverLocationTracking(orderId);
+        }
         await syncWithSupabase(true);
       } catch (err) {
         console.error("Sevkiyat başlatma hatası:", err);
@@ -1696,12 +1701,17 @@ async function confirmShipping() {
         order.shipped_at = shippedTime;
         order.vehicle_plate = selectedValue;
         order.carried_material = materials;
+        order.shipped_by = state.activeUser;
         
         saveState();
         broadcastUpdate(voiceMsg);
         speakText(voiceMsg);
         closeShippingModal();
-        initDriverLocationTracking(orderId); // Konum takibini başlat!
+        if (typeof checkAndSyncLocationTracking === "function") {
+          checkAndSyncLocationTracking();
+        } else {
+          initDriverLocationTracking(orderId);
+        }
         renderShippingOrders();
         showToast("🚀 Sevkiyat süreci başladı, araç yola çıktı!", "success");
       }
@@ -1909,38 +1919,29 @@ function initDriverLocationTracking(orderId) {
 
   requestWakeLock();
 
-  // İlk konum güncellemesini hemen yap
-  navigator.geolocation.getCurrentPosition(
+  // watchPosition ile anlık ve kararlı GPS takibi başlat
+  const watchId = navigator.geolocation.watchPosition(
     (position) => {
       updateOrderLocation(orderId, position.coords.latitude, position.coords.longitude);
     },
     (error) => {
-      console.warn("İlk konum güncellemesi hatası:", error);
+      console.error("GPS Konum Takip Hatası:", error);
     },
-    { enableHighAccuracy: true, timeout: 10000 }
+    { 
+      enableHighAccuracy: true, 
+      timeout: 15000, 
+      maximumAge: 0 
+    }
   );
 
-  // Interval tabanlı aralıklı güncelleme (Her 60 saniyede bir GPS aç/kapat)
-  const intervalId = setInterval(() => {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        updateOrderLocation(orderId, position.coords.latitude, position.coords.longitude);
-      },
-      (error) => {
-        console.error("GPS Aralıklı Konum Hatası:", error);
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-    );
-  }, 60000); // 1 dakika pil ömrü için idealdir
-
-  state.activeGeolocationWatch = { orderId, intervalId };
-  console.log(`Batarya dostu konum takibi başlatıldı (Aralık: 60s). Sipariş ID: ${orderId}`);
+  state.activeGeolocationWatch = { orderId, watchId };
+  console.log(`Canlı konum takibi (watchPosition) başlatıldı. Sipariş ID: ${orderId}`);
 }
 
 function clearDriverLocationTracking() {
   if (state.activeGeolocationWatch) {
-    if (state.activeGeolocationWatch.intervalId) {
-      clearInterval(state.activeGeolocationWatch.intervalId);
+    if (state.activeGeolocationWatch.watchId) {
+      navigator.geolocation.clearWatch(state.activeGeolocationWatch.watchId);
     }
     console.log(`Konum takibi durduruldu. Sipariş ID: ${state.activeGeolocationWatch.orderId}`);
     state.activeGeolocationWatch = null;

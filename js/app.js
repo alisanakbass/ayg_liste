@@ -204,6 +204,11 @@ async function syncWithSupabase(triggerUI = true) {
       if (typeof updateStats === "function") updateStats();
       if (typeof updateAdminUI === "function") updateAdminUI();
     }
+    
+    // Otomatik konum takibi kontrolü (realtime güncellemeler dahil)
+    if (typeof checkAndSyncLocationTracking === "function") {
+      checkAndSyncLocationTracking();
+    }
   } catch (err) {
     console.error("Supabase senkronizasyon hatası:", err);
   }
@@ -466,11 +471,8 @@ async function init() {
     if (typeof updateAdminUI === "function") updateAdminUI();
 
     // Yolda olan sipariş için konum takibini otomatik olarak sürdür
-    if (typeof initDriverLocationTracking === "function") {
-      const activeYoldaOrder = state.orders.find(o => o.status === "Yolda" && (o.picked_by === state.activeUser || o.created_by === state.activeUser));
-      if (activeYoldaOrder) {
-        initDriverLocationTracking(activeYoldaOrder.id);
-      }
+    if (typeof checkAndSyncLocationTracking === "function") {
+      checkAndSyncLocationTracking();
     }
 
     switchTab(state.currentTab || "active");
@@ -783,5 +785,25 @@ function handleFabTab(tab) {
 function confirmLogout() {
   if (confirm("Oturumu kapatmak ve sistemden çıkış yapmak istediğinize emin misiniz?")) {
     logoutAdmin();
+  }
+}
+
+// Merkezi Konum Takip Kontrolü (Real-time & Local)
+function checkAndSyncLocationTracking() {
+  if (typeof initDriverLocationTracking !== "function") return;
+
+  // Şu anki aktif kullanıcının yolda olan bir siparişi var mı?
+  const myActiveOrder = state.orders.find(o => o.status === "Yolda" && o.shipped_by === state.activeUser);
+
+  if (myActiveOrder) {
+    // Takip henüz başlamadıysa veya başka bir sipariş için başladıysa
+    if (!state.activeGeolocationWatch || state.activeGeolocationWatch.orderId !== myActiveOrder.id) {
+      initDriverLocationTracking(myActiveOrder.id);
+    }
+  } else {
+    // Aktif yolda siparişimiz yoksa ama takip açıksa durdur
+    if (state.activeGeolocationWatch) {
+      clearDriverLocationTracking();
+    }
   }
 }
