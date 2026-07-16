@@ -57,8 +57,7 @@ function initSupabaseRealtime() {
     supabaseChannelOrders = supabaseClient
       .channel('public:orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, async (payload) => {
-        // Değişiklik algılandığında verileri tekrar senkronize et
-        await syncWithSupabase(false); // Sesli bildirimleri tetiklemek üzere sync
+        await syncWithSupabase(true); // UI güncellemesini tetiklemek için true
         
         // Sesli bildirim tetikleyicisi
         if (payload.eventType === "INSERT") {
@@ -115,14 +114,14 @@ function initSupabaseRealtime() {
     supabaseChannelProfiles = supabaseClient
       .channel('public:profiles')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, async (payload) => {
-        await syncWithSupabase(false);
+        await syncWithSupabase(true);
       })
       .subscribe();
 
     supabaseChannelVehicles = supabaseClient
       .channel('public:vehicles')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' }, async (payload) => {
-        await syncWithSupabase(false);
+        await syncWithSupabase(true);
       })
       .subscribe();
 

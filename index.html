@@ -138,7 +138,7 @@
     <!-- TOAST CONTAINER -->
     <div
       id="toast-container"
-      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-11/12 max-w-sm"
+      class="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex flex-col-reverse gap-2 w-11/12 max-w-sm"
     ></div>
 
     <!-- PROFIL SECIM EKRANI -->
@@ -2388,18 +2388,24 @@
           </svg>
           Sipariş Oluştur
         </button>
-        <button onclick="handleFabTab('active')" class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-all active:scale-95 text-left">
-          <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
-          </svg>
-          Aktif Siparişler
+        <button onclick="handleFabTab('active')" class="flex items-center justify-between gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-all active:scale-95 text-left">
+          <div class="flex items-center gap-3 min-w-0">
+            <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+            </svg>
+            <span>Aktif Siparişler</span>
+          </div>
+          <span id="fab-badge-active" class="hidden bg-red-600 dark:bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-4">0</span>
         </button>
-        <button onclick="handleFabTab('shipping')" class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-all active:scale-95 text-left">
-          <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/>
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10M13 16h6m-6 0H6m13 0a2 2 0 002-2v-4a1 1 0 00-1-1h-6v7"/>
-          </svg>
-          Sevkiyat Takibi
+        <button onclick="handleFabTab('shipping')" class="flex items-center justify-between gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-all active:scale-95 text-left">
+          <div class="flex items-center gap-3 min-w-0">
+            <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10M13 16h6m-6 0H6m13 0a2 2 0 002-2v-4a1 1 0 00-1-1h-6v7"/>
+            </svg>
+            <span>Sevkiyat Takibi</span>
+          </div>
+          <span id="fab-badge-shipping" class="hidden bg-red-600 dark:bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-4">0</span>
         </button>
         <button onclick="handleFabTab('history')" class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-all active:scale-95 text-left">
           <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2407,11 +2413,14 @@
           </svg>
           Geçmiş Siparişler
         </button>
-        <button onclick="handleFabTab('stock')" class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-all active:scale-95 text-left">
-          <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-          </svg>
-          Stok Yönetimi
+        <button onclick="handleFabTab('stock')" class="flex items-center justify-between gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-all active:scale-95 text-left">
+          <div class="flex items-center gap-3 min-w-0">
+            <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+            </svg>
+            <span>Stok Yönetimi</span>
+          </div>
+          <span id="fab-badge-stock" class="hidden bg-amber-500 text-slate-950 text-[9px] font-black px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-4">0</span>
         </button>
         <button id="fab-btn-admin" onclick="handleFabTab('admin')" class="hidden flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-all active:scale-95 border-t border-slate-100 dark:border-slate-700/50 mt-1 pt-2 text-left animate-fade-in">
           <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -12,6 +12,7 @@ async function syncStocksWithSupabase(triggerUI = true) {
       state.stocks = parsed.stocks || [];
     }
     if (triggerUI) renderStockPanel();
+    if (typeof updateTabBadges === "function") updateTabBadges();
     return;
   }
 
@@ -37,6 +38,7 @@ async function syncStocksWithSupabase(triggerUI = true) {
   }
 
   if (triggerUI) renderStockPanel();
+  if (typeof updateTabBadges === "function") updateTabBadges();
 }
 
 // Yeni Eksik Stok Bildirimi Oluştur

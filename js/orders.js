@@ -626,11 +626,17 @@ function renderBekliyorCard(o) {
       <span>👤 Temsilci: ${escapeHTML(o.created_by || "") || "—"}</span>
       <span class="text-indigo-600 dark:text-indigo-400 normal-case font-bold">🎯 Alıcı: ${escapeHTML(o.recipient || "") || "Genel"}</span>
     </div>
-    <button onclick="startPicking('${o.id}')" 
-      class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs px-4 py-2.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-1 cursor-pointer">
-      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      Hazırlamaya Başla
-    </button>
+    <div class="flex gap-2">
+      <button onclick="openModal('${o.id}')" 
+        class="bg-slate-100 dark:bg-slate-700/80 hover:bg-slate-200 dark:hover:bg-slate-650 text-slate-700 dark:text-slate-200 text-xs px-3.5 py-2.5 rounded-xl font-bold transition-all active:scale-95 flex items-center gap-1 cursor-pointer">
+        🔍 Detay
+      </button>
+      <button onclick="startPicking('${o.id}')" 
+        class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs px-4 py-2.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-1 cursor-pointer">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Hazırlamaya Başla
+      </button>
+    </div>
   </div>
 </div>
 `;
@@ -669,9 +675,14 @@ function renderHazirlaniyorCard(o) {
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
             Detay ve Tamamla
            </button>`
-        : `<div class="flex-1 text-slate-500 bg-slate-100 dark:bg-slate-900 text-xs py-2.5 rounded-xl font-semibold text-center flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-800">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-            <span>Kilitli</span>
+        : `<button onclick="openModal('${o.id}')" 
+                   class="bg-slate-100 dark:bg-slate-700/80 hover:bg-slate-200 dark:hover:bg-slate-650 text-slate-700 dark:text-slate-200 text-xs px-3.5 py-2.5 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-1 cursor-pointer" 
+                   title="Sipariş Detayı">
+             🔍 Detay
+           </button>
+           <div class="flex-1 text-slate-500 bg-slate-50/50 dark:bg-slate-900 text-xs py-2.5 rounded-xl font-semibold text-center flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-800">
+             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+             <span>Kilitli</span>
            </div>
            <button onclick="takeoverPicking('${o.id}')" 
                    class="bg-slate-100 dark:bg-slate-700 hover:bg-amber-600 hover:text-white dark:hover:bg-amber-600 text-slate-600 dark:text-slate-300 px-3 py-2.5 rounded-xl font-bold text-xs transition-all active:scale-95 flex items-center justify-center gap-0.5 border border-slate-200 dark:border-slate-700 cursor-pointer" 
@@ -785,15 +796,15 @@ function renderModalItems() {
   const itemsContainer = document.getElementById("modal-items");
   if (!itemsContainer) return;
 
-  const isCompleted = order.status === "Tamamlandı";
+  const isEditable = order.status === "Hazırlanıyor" && (!order.picked_by || order.picked_by === state.activeUser);
   
-  // Siparişi tamamla butonunu göster/gizle
+  // Siparişi tamamla butonunu göster/gizle (Sadece düzenlenebilir ise gösterilir)
   const completeBtn = document.getElementById("btn-complete-order");
   if (completeBtn) {
-    if (isCompleted) {
-      completeBtn.classList.add("hidden");
-    } else {
+    if (isEditable) {
       completeBtn.classList.remove("hidden");
+    } else {
+      completeBtn.classList.add("hidden");
     }
   }
 
@@ -826,17 +837,17 @@ function renderModalItems() {
           ? "bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/60" 
           : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700";
 
-        const disableControls = isCompleted || isChecked ? 'disabled opacity-50' : '';
-        const disableInput = isCompleted || isChecked ? 'disabled' : '';
-        const disableTick = isCompleted ? 'disabled opacity-50 cursor-not-allowed' : 'cursor-pointer';
-        const tickAction = isCompleted ? '' : `onclick="toggleItemChecked(${item.originalIndex}, event)"`;
+        const disableControls = !isEditable || isChecked ? 'disabled opacity-50' : '';
+        const disableInput = !isEditable || isChecked ? 'disabled' : '';
+        const disableTick = !isEditable ? 'disabled opacity-50 cursor-not-allowed' : 'cursor-pointer';
+        const tickAction = !isEditable ? '' : `onclick="toggleItemChecked(${item.originalIndex}, event)"`;
 
         return `
 <div class="border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors duration-200 ${rowClass}">
   <div class="flex items-center gap-3 flex-1 min-w-0">
     <!-- Tik Kutusu -->
-    <button ${tickAction} ${isCompleted ? 'disabled' : ''}
-      class="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-all active:scale-90 ${disableTick} ${
+    <button ${tickAction} ${!isEditable ? 'disabled' : ''}
+      class="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-all active:scale-95 ${disableTick} ${
         isChecked 
           ? "bg-emerald-600 border-emerald-600 text-white" 
           : "border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-transparent"
@@ -851,12 +862,12 @@ function renderModalItems() {
   <div class="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 border-slate-200 dark:border-slate-800 pt-2 sm:pt-0">
     <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold">Depodaki:</span>
     <div class="flex items-center gap-1.5 font-bold">
-      <button onclick="event.stopPropagation(); event.preventDefault(); adjustQty(${item.originalIndex}, -1); saveModalOrderProgress();" class="w-8 h-8 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 rounded-lg font-bold text-lg hover:bg-red-100 dark:hover:bg-red-500/20 active:scale-90 transition-all flex items-center justify-center" ${disableControls}>−</button>
+      <button onclick="event.stopPropagation(); event.preventDefault(); adjustQty(${item.originalIndex}, -1); saveModalOrderProgress();" class="w-8 h-8 bg-red-50 dark:bg-red-500/10 text-red-650 dark:text-red-400 border border-red-200 dark:border-red-500/20 rounded-lg font-bold text-lg hover:bg-red-100 dark:hover:bg-red-500/20 active:scale-95 transition-all flex items-center justify-center" ${disableControls}>−</button>
       <input type="number" id="fulfilled-${item.originalIndex}" value="${item.fulfilled_quantity}" min="0" max="${item.requested_quantity}"
         class="w-14 text-center border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-lg py-1.5 font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
         onclick="event.stopPropagation();"
         onchange="validateQty(${item.originalIndex}, ${item.requested_quantity}); saveModalOrderProgress();" ${disableInput} />
-      <button onclick="event.stopPropagation(); event.preventDefault(); adjustQty(${item.originalIndex}, 1, ${item.requested_quantity}); saveModalOrderProgress();" class="w-8 h-8 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/20 rounded-lg font-bold text-lg hover:bg-green-100 dark:hover:bg-green-200 active:scale-90 transition-all flex items-center justify-center" ${disableControls}>+</button>
+      <button onclick="event.stopPropagation(); event.preventDefault(); adjustQty(${item.originalIndex}, 1, ${item.requested_quantity}); saveModalOrderProgress();" class="w-8 h-8 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/20 rounded-lg font-bold text-lg hover:bg-green-100 dark:hover:bg-green-200 active:scale-95 transition-all flex items-center justify-center" ${disableControls}>+</button>
     </div>
   </div>
 </div>
@@ -1194,6 +1205,63 @@ function updateStats() {
   const yoldaCount = state.orders.filter(o => o.status === "Yolda").length;
   if (countYolacikacak) countYolacikacak.textContent = yolacikacakCount;
   if (countYolda) countYolda.textContent = yoldaCount;
+
+  // Rozet adetlerini güncelle
+  updateTabBadges(bekliyor, hazirlaniyor, yolacikacakCount, yoldaCount);
+}
+
+function updateTabBadges(bekliyor, hazirlaniyor, yolacikacakCount, yoldaCount) {
+  const activeCount = (bekliyor !== undefined ? bekliyor : state.orders.filter(o => o.status === "Bekliyor").length) + 
+                      (hazirlaniyor !== undefined ? hazirlaniyor : state.orders.filter(o => o.status === "Hazırlanıyor").length);
+
+  const shippingCount = (yolacikacakCount !== undefined ? yolacikacakCount : state.orders.filter(o => o.status === "Tamamlandı").length) + 
+                        (yoldaCount !== undefined ? yoldaCount : state.orders.filter(o => o.status === "Yolda").length);
+
+  const stockCount = (state.stocks || []).filter(s => s.status === "Eksik" || s.status === "Sipariş Verildi").length;
+
+  // Masaüstü sekmeleri
+  setBadgeValue("tab-active", activeCount);
+  setBadgeValue("tab-shipping", shippingCount);
+  setBadgeValue("tab-stock", stockCount);
+
+  // Mobil sekmeleri
+  setBadgeValue("fab-badge-active", activeCount, true);
+  setBadgeValue("fab-badge-shipping", shippingCount, true);
+  setBadgeValue("fab-badge-stock", stockCount, true);
+}
+
+function setBadgeValue(btnId, count, isDirectSpan = false) {
+  let badge;
+  if (isDirectSpan) {
+    badge = document.getElementById(btnId);
+  } else {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    if (!btn.classList.contains("relative")) {
+      btn.classList.add("relative");
+    }
+    badge = btn.querySelector(".tab-badge");
+    if (!badge && count > 0) {
+      badge = document.createElement("span");
+      badge.className = "tab-badge absolute top-1.5 right-2 bg-red-600 dark:bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-4";
+      btn.appendChild(badge);
+    }
+  }
+
+  if (badge) {
+    if (count > 0) {
+      badge.textContent = count;
+      badge.classList.remove("hidden");
+      if (isDirectSpan) {
+        badge.className = "bg-red-600 dark:bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-4 ml-auto";
+      }
+    } else {
+      badge.classList.add("hidden");
+      if (isDirectSpan) {
+        badge.className = "hidden";
+      }
+    }
+  }
 }
 
 async function toggleItemChecked(idx, event) {
@@ -1440,7 +1508,11 @@ function renderYolaCikacakCard(o) {
     </div>
   </div>
   
-  <div class="border-t border-slate-100 dark:border-slate-800 pt-3 mt-1 flex justify-end">
+  <div class="border-t border-slate-100 dark:border-slate-800 pt-3 mt-1 flex justify-between gap-2">
+    <button onclick="openModal('${o.id}')" 
+      class="bg-slate-100 dark:bg-slate-700/80 hover:bg-slate-200 dark:hover:bg-slate-650 text-slate-700 dark:text-slate-200 text-xs px-3.5 py-2.5 rounded-xl font-bold transition-all active:scale-95 flex items-center gap-1 cursor-pointer">
+      🔍 Detay
+    </button>
     <button onclick="startShipping('${o.id}')" 
       class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs px-4 py-2.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-1 cursor-pointer">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10M13 16h6m-6 0H6m13 0a2 2 0 002-2v-4a1 1 0 00-1-1h-6v7"/></svg>
@@ -1493,7 +1565,11 @@ function renderYoldaCard(o) {
     </div>
   </div>
   
-  <div class="border-t border-slate-100 dark:border-slate-800 pt-3 mt-1 flex justify-end">
+  <div class="border-t border-slate-100 dark:border-slate-800 pt-3 mt-1 flex justify-between gap-2">
+    <button onclick="openModal('${o.id}')" 
+      class="bg-slate-100 dark:bg-slate-700/80 hover:bg-slate-200 dark:hover:bg-slate-650 text-slate-700 dark:text-slate-200 text-xs px-3.5 py-2.5 rounded-xl font-bold transition-all active:scale-95 flex items-center gap-1 cursor-pointer">
+      🔍 Detay
+    </button>
     <button onclick="deliverOrder('${o.id}')" 
       class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs px-4 py-2.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-1 cursor-pointer">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
