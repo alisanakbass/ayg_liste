@@ -44,6 +44,10 @@ let supabaseChannelProfiles = null;
 let supabaseChannelVehicles = null;
 let supabaseChannelStocks = null;
 
+// Bildirimlerin mükerrer tetiklenmesini engellemek için kimlik takipleri
+let processedOrderIds = new Set();
+let processedStockIds = new Set();
+
 function initSupabaseRealtime() {
   if (!supabaseClient) return;
 
@@ -57,42 +61,51 @@ function initSupabaseRealtime() {
     supabaseChannelOrders = supabaseClient
       .channel('public:orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, async (payload) => {
-        await syncWithSupabase(true); // UI güncellemesini tetiklemek için true
+        await syncWithSupabase(true, ["orders"]); // Sadece siparişleri güncelle
         
         // Sesli bildirim tetikleyicisi
         if (payload.eventType === "INSERT") {
-          speakText("Yeni sipariş oluşturuldu.");
-          showToast("🔔 Yeni bir sipariş geldi!", "success");
-          playNotificationSound();
-          
-          // Tarayıcı Bildirimi (Service Worker ve Normal Bildirim Desteğiyle)
-          if ("Notification" in window && Notification.permission === "granted") {
-            const companyName = payload.new.customer_address.split(" [Adres:")[0] || "Müşteri";
-            const notifTitle = "🔔 Yeni AYG Siparişi!";
-            const notifOptions = {
-              body: `${companyName} yeni bir sipariş oluşturdu.`,
-              icon: "icon-192.png",
-              badge: "icon-192.png",
-              vibrate: [200, 100, 200],
-              tag: payload.new.id
-            };
+          const orderId = payload.new.id;
+          if (!processedOrderIds.has(orderId)) {
+            processedOrderIds.add(orderId);
+            if (processedOrderIds.size > 100) {
+              const oldestId = processedOrderIds.values().next().value;
+              processedOrderIds.delete(oldestId);
+            }
 
-            try {
-              if ("serviceWorker" in navigator) {
-                navigator.serviceWorker.getRegistration().then(reg => {
-                  if (reg) {
-                    reg.showNotification(notifTitle, notifOptions);
-                  } else {
+            speakText("Yeni sipariş oluşturuldu.");
+            showToast("🔔 Yeni bir sipariş geldi!", "success");
+            playNotificationSound();
+            
+            // Tarayıcı Bildirimi (Service Worker ve Normal Bildirim Desteğiyle)
+            if ("Notification" in window && Notification.permission === "granted") {
+              const companyName = payload.new.customer_address.split(" [Adres:")[0] || "Müşteri";
+              const notifTitle = "🔔 Yeni AYG Siparişi!";
+              const notifOptions = {
+                body: `${companyName} yeni bir sipariş oluşturdu.`,
+                icon: "icon-192.png",
+                badge: "icon-192.png",
+                vibrate: [200, 100, 200],
+                tag: payload.new.id
+              };
+
+              try {
+                if ("serviceWorker" in navigator) {
+                  navigator.serviceWorker.getRegistration().then(reg => {
+                    if (reg) {
+                      reg.showNotification(notifTitle, notifOptions);
+                    } else {
+                      new Notification(notifTitle, notifOptions);
+                    }
+                  }).catch(() => {
                     new Notification(notifTitle, notifOptions);
-                  }
-                }).catch(() => {
+                  });
+                } else {
                   new Notification(notifTitle, notifOptions);
-                });
-              } else {
-                new Notification(notifTitle, notifOptions);
+                }
+              } catch (e) {
+                console.warn("Bildirim hatası:", e);
               }
-            } catch (e) {
-              console.warn("Bildirim hatası:", e);
             }
           }
         } else if (payload.eventType === "UPDATE") {
@@ -114,14 +127,14 @@ function initSupabaseRealtime() {
     supabaseChannelProfiles = supabaseClient
       .channel('public:profiles')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, async (payload) => {
-        await syncWithSupabase(true);
+        await syncWithSupabase(true, ["profiles"]); // Sadece profilleri güncelle
       })
       .subscribe();
 
     supabaseChannelVehicles = supabaseClient
       .channel('public:vehicles')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' }, async (payload) => {
-        await syncWithSupabase(true);
+        await syncWithSupabase(true, ["vehicles"]); // Sadece araçları güncelle
       })
       .subscribe();
 
@@ -133,9 +146,18 @@ function initSupabaseRealtime() {
         }
         
         if (payload.eventType === "INSERT") {
-          speakText("Yeni eksik stok bildirildi.");
-          showToast("🔔 Yeni bir eksik stok bildirimi var!", "warning");
-          playNotificationSound();
+          const stockId = payload.new.id;
+          if (!processedStockIds.has(stockId)) {
+            processedStockIds.add(stockId);
+            if (processedStockIds.size > 100) {
+              const oldestId = processedStockIds.values().next().value;
+              processedStockIds.delete(oldestId);
+            }
+
+            speakText("Yeni eksik stok bildirildi.");
+            showToast("🔔 Yeni bir eksik stok bildirimi var!", "warning");
+            playNotificationSound();
+          }
         }
       })
       .subscribe();
@@ -145,42 +167,69 @@ function initSupabaseRealtime() {
 }
 
 // Supabase'den Verileri Çek ve Yerel Durumu Güncelle
-async function syncWithSupabase(triggerUI = true) {
+async function syncWithSupabase(triggerUI = true, targets = ["orders", "profiles", "vehicles"]) {
   if (!supabaseClient) return;
 
   try {
+    let ordersUpdated = false;
+    let profilesUpdated = false;
+    let vehiclesUpdated = false;
+
     // Siparişleri çek
-    const { data: dbOrders, error: ordersErr } = await supabaseClient
-      .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false });
+    if (targets.includes("orders")) {
+      // Aktif siparişleri çek (Bekliyor, Hazırlanıyor, Tamamlandı, Yolda)
+      const { data: activeOrders, error: activeErr } = await supabaseClient
+        .from("orders")
+        .select("*")
+        .neq("status", "Teslim Edildi");
 
-    if (ordersErr) throw ordersErr;
+      if (activeErr) throw activeErr;
 
-    // Profilleri çek
-    const { data: dbProfiles, error: profilesErr } = await supabaseClient
-      .from("profiles")
-      .select("*");
+      // Son teslim edilen 50 siparişi çek (Geçmiş için limitli yükleme)
+      const { data: historyOrders, error: historyErr } = await supabaseClient
+        .from("orders")
+        .select("*")
+        .eq("status", "Teslim Edildi")
+        .order("created_at", { ascending: false })
+        .limit(50);
 
-    if (profilesErr) throw profilesErr;
+      if (historyErr) throw historyErr;
 
-    // Araçları çek
-    let dbVehicles = [];
-    const { data: dbVeh, error: vehErr } = await supabaseClient
-      .from("vehicles")
-      .select("*")
-      .order("created_at", { ascending: false });
+      // Birleştir ve tarihe göre azalan sırada sırala
+      const allOrders = [...(activeOrders || []), ...(historyOrders || [])];
+      allOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    if (!vehErr) {
-      dbVehicles = dbVeh || [];
+      state.orders = allOrders;
+      ordersUpdated = true;
     }
 
-    // State'i güncelle
-    state.orders = dbOrders || [];
-    state.profilesDetail = dbProfiles || [];
-    state.profiles = (dbProfiles || []).map(p => p.name);
-    state.adminProfiles = (dbProfiles || []).filter(p => p.is_admin).map(p => p.name);
-    state.vehicles = dbVehicles || [];
+    // Profilleri çek
+    if (targets.includes("profiles")) {
+      const { data: dbProfiles, error: profilesErr } = await supabaseClient
+        .from("profiles")
+        .select("*");
+
+      if (profilesErr) throw profilesErr;
+      state.profilesDetail = dbProfiles || [];
+      state.profiles = (dbProfiles || []).map(p => p.name);
+      state.adminProfiles = (dbProfiles || []).filter(p => p.is_admin).map(p => p.name);
+      profilesUpdated = true;
+    }
+
+    // Araçları çek
+    if (targets.includes("vehicles")) {
+      let dbVehicles = [];
+      const { data: dbVeh, error: vehErr } = await supabaseClient
+        .from("vehicles")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!vehErr) {
+        dbVehicles = dbVeh || [];
+      }
+      state.vehicles = dbVehicles;
+      vehiclesUpdated = true;
+    }
     
     // Varsayılan profilleri koru (eğer veritabanı tamamen boşsa ve yerel moddaysak)
     if (state.profiles.length === 0 && !supabaseClient) {
@@ -189,23 +238,30 @@ async function syncWithSupabase(triggerUI = true) {
 
     saveState();
 
-    if (typeof syncStocksWithSupabase === "function") {
+    if (typeof syncStocksWithSupabase === "function" && (targets.includes("orders") || targets.includes("stocks"))) {
       syncStocksWithSupabase(triggerUI && state.currentTab === "stock");
     }
 
     if (triggerUI) {
-      if (typeof renderActiveOrders === "function") renderActiveOrders();
-      if (typeof renderShippingOrders === "function") renderShippingOrders();
-      if (typeof renderHistory === "function") renderHistory();
-      if (typeof renderProfiles === "function") renderProfiles();
-      if (typeof renderAdminProfiles === "function") renderAdminProfiles();
-      if (typeof renderAdminVehicles === "function") renderAdminVehicles();
-      if (typeof updateStats === "function") updateStats();
+      if (ordersUpdated) {
+        if (typeof renderActiveOrders === "function") renderActiveOrders();
+        if (typeof renderShippingOrders === "function") renderShippingOrders();
+        if (typeof renderHistory === "function") renderHistory();
+        if (typeof updateStats === "function") updateStats();
+      }
+      if (profilesUpdated) {
+        if (typeof renderProfiles === "function") renderProfiles();
+        if (typeof renderAdminProfiles === "function") renderAdminProfiles();
+      }
+      if (vehiclesUpdated) {
+        if (typeof renderAdminVehicles === "function") renderAdminVehicles();
+      }
       if (typeof updateAdminUI === "function") updateAdminUI();
+      if (typeof lucide !== "undefined") lucide.createIcons();
     }
     
     // Otomatik konum takibi kontrolü (realtime güncellemeler dahil)
-    if (typeof checkAndSyncLocationTracking === "function") {
+    if (ordersUpdated && typeof checkAndSyncLocationTracking === "function") {
       checkAndSyncLocationTracking();
     }
   } catch (err) {
@@ -559,6 +615,9 @@ function updateAdminUI() {
       btnChangeProfile.classList.add("hidden");
     }
   }
+
+  // Lucide İkonlarını Çiz
+  if (typeof lucide !== "undefined") lucide.createIcons();
 }
 
 // Başlat

@@ -60,13 +60,22 @@ function loadState() {
 }
 
 function saveState() {
+  // Sadece aktif siparişleri ve en son 10 geçmiş siparişi localStorage'a kaydet (performans optimizasyonu)
+  const activeOrders = state.orders.filter(o => o.status !== "Teslim Edildi");
+  const recentHistory = state.orders
+    .filter(o => o.status === "Teslim Edildi")
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 10);
+  
+  const ordersToSave = [...activeOrders, ...recentHistory];
+
   localStorage.setItem(
     "ayg-state",
     JSON.stringify({
       profiles: state.profiles,
       adminProfiles: state.adminProfiles || [],
       vehicles: state.vehicles,
-      orders: state.orders,
+      orders: ordersToSave,
       stocks: state.stocks || [],
       activeUser: state.activeUser,
       theme: state.theme,
