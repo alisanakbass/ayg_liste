@@ -658,7 +658,7 @@ function renderActiveOrders() {
   bContainer.innerHTML =
     bekliyor.length === 0
       ? '<div class="text-slate-400 dark:text-slate-500 text-sm text-center py-8 bg-white dark:bg-slate-800 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">Aranan kriterde bekleyen sipariş yok</div>'
-      : bekliyor.map((o) => renderBekliyorCard(o)).join("");
+      : bekliyor.map((o) => renderOrderCard(o)).join("");
 
   hContainer.innerHTML =
     hazirlaniyor.length === 0
@@ -666,6 +666,10 @@ function renderActiveOrders() {
       : hazirlaniyor.map((o) => renderHazirlaniyorCard(o)).join("");
   
   updateStats();
+}
+
+function renderBekliyorCard(o) {
+  return renderOrderCard(o);
 }
 
 function renderOrderCard(o) {
@@ -692,12 +696,18 @@ function renderOrderCard(o) {
   </div>
 
   <div class="mb-4">
-    <div class="flex justify-between items-center mb-3">
-      <div class="flex items-center gap-1.5">
+    <div class="flex justify-between items-center gap-2 mb-3">
+      <div class="flex items-center gap-1.5 shrink-0">
         <span class="px-2.5 py-1 rounded-full text-xs font-bold ${URGENCY_BADGE[o.urgency]}">${URGENCY_ICON[o.urgency]} ${o.urgency}</span>
-        ${hasNote ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">📝 Not Var</span>` : ""}
+        ${hasNote ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">📝 Not</span>` : ""}
       </div>
-      <span class="text-xs text-slate-400 dark:text-slate-500 font-medium">${formatDateRelative(o.created_at)}</span>
+
+      <!-- MÜŞTERİ / ALICI İSMİ (İKONSUZ CANLI KIRMIZI HAP BADGE) -->
+      <span class="font-black text-xs sm:text-sm text-white bg-red-600 dark:bg-red-600 px-3.5 py-1 rounded-full shadow-sm shadow-red-600/30 uppercase tracking-wide truncate max-w-[160px] sm:max-w-[240px] text-center shrink-0" title="Müşteri / Alıcı">
+        ${escapeHTML(o.recipient || "") || "GENEL MÜŞTERİ"}
+      </span>
+
+      <span class="text-xs text-slate-400 dark:text-slate-500 font-medium shrink-0">${formatDateRelative(o.created_at)}</span>
     </div>
     <p class="font-bold text-slate-800 dark:text-slate-100 text-base mb-1.5 flex items-start gap-1 justify-between">
       <span class="flex items-start gap-1 min-w-0 flex-1">
@@ -714,7 +724,7 @@ function renderOrderCard(o) {
   <div class="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-3 mt-1">
     <div class="flex flex-col gap-0.5 text-[10px] text-slate-400 font-semibold uppercase">
       <span>👤 Temsilci: ${escapeHTML(o.created_by || "") || "—"}</span>
-      <span class="text-indigo-600 dark:text-indigo-400 normal-case font-bold">🎯 Alıcı: ${escapeHTML(o.recipient || "") || "Genel"}</span>
+      <span class="text-indigo-600 dark:text-indigo-400 normal-case font-bold">🚚 Şoför: ${escapeHTML(o.shipped_by || "") || "—"}</span>
       ${o.customer_phone ? `<a href="tel:${o.customer_phone}" class="text-emerald-600 dark:text-emerald-400 normal-case font-bold flex items-center gap-0.5 mt-0.5 hover:underline">📞 Ara: ${escapeHTML(o.customer_phone)}</a>` : ""}
     </div>
     <div class="flex gap-2">
@@ -740,12 +750,18 @@ function renderHazirlaniyorCard(o) {
   return `
 <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-5 flex flex-col justify-between hover:border-indigo-500 transition-all duration-200 animate-slide-in">
   <div class="mb-4">
-    <div class="flex justify-between items-center mb-3">
-      <div class="flex items-center gap-1.5">
+    <div class="flex justify-between items-center gap-2 mb-3">
+      <div class="flex items-center gap-1.5 shrink-0">
         <span class="px-2.5 py-1 rounded-full text-xs font-bold ${URGENCY_BADGE[o.urgency]}">${URGENCY_ICON[o.urgency]} ${o.urgency}</span>
-        ${hasNote ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">📝 Not Var</span>` : ""}
+        ${hasNote ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">📝 Not</span>` : ""}
       </div>
-      <span class="text-xs text-slate-400 dark:text-slate-500 font-medium">${formatDateRelative(o.created_at)}</span>
+
+      <!-- MÜŞTERİ / ALICI İSMİ (İKONSUZ CANLI KIRMIZI HAP BADGE) -->
+      <span class="font-black text-xs sm:text-sm text-white bg-red-600 dark:bg-red-600 px-3.5 py-1 rounded-full shadow-sm shadow-red-600/30 uppercase tracking-wide truncate max-w-[160px] sm:max-w-[240px] text-center shrink-0" title="Müşteri / Alıcı">
+        ${escapeHTML(o.recipient || "") || "GENEL MÜŞTERİ"}
+      </span>
+
+      <span class="text-xs text-slate-400 dark:text-slate-500 font-medium shrink-0">${formatDateRelative(o.created_at)}</span>
     </div>
     <p class="font-bold text-slate-800 dark:text-slate-100 text-base mb-2 flex items-start gap-1 justify-between">
       <span class="flex items-start gap-1 min-w-0 flex-1">
@@ -757,7 +773,7 @@ function renderHazirlaniyorCard(o) {
     <div class="flex flex-col gap-0.5 text-[10px] text-slate-400 font-semibold uppercase mb-2.5">
       <div class="flex justify-between items-center w-full">
         <span>👤 Temsilci: ${escapeHTML(o.created_by || "") || "—"}</span>
-        <span class="text-indigo-600 dark:text-indigo-400 normal-case font-bold">🎯 Alıcı: ${escapeHTML(o.recipient || "") || "Genel"}</span>
+        <span class="text-indigo-600 dark:text-indigo-400 normal-case font-bold">🚚 Şoför: ${escapeHTML(o.shipped_by || "") || "—"}</span>
       </div>
       ${o.customer_phone ? `<a href="tel:${o.customer_phone}" class="text-emerald-600 dark:text-emerald-400 normal-case font-bold flex items-center gap-0.5 mt-0.5 hover:underline">📞 Ara: ${escapeHTML(o.customer_phone)}</a>` : ""}
     </div>
@@ -1195,7 +1211,7 @@ function renderHistory() {
     </p>
     <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
       <span>👤 Temsilci: <b>${o.created_by || "—"}</b></span>
-      <span>🎯 Alıcı: <b>${o.recipient || "Genel"}</b></span>
+      <span>🚚 Şoför: <b>${escapeHTML(o.shipped_by || "") || "—"}</b></span>
       <span>👷 Hazırlayan: <b>${o.picked_by || "—"}</b></span>
     </div>
     <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
@@ -1601,12 +1617,23 @@ function renderYolaCikacakCard(o) {
   const itemSummary = o.items
     .map((i) => `${i.product_name} (${i.fulfilled_quantity} ${i.unit || "adet"})`)
     .join(", ");
+  const hasNote = !!(o.note || o.description);
+
   return `
 <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-5 flex flex-col justify-between relative group hover:border-indigo-500 dark:hover:border-indigo-400 transition-all duration-200 animate-slide-in">
   <div class="mb-4">
-    <div class="flex justify-between items-center mb-3">
-      <span class="px-2.5 py-1 rounded-full text-xs font-bold ${URGENCY_BADGE[o.urgency]}">${URGENCY_ICON[o.urgency]} ${o.urgency}</span>
-      <span class="text-xs text-slate-400 dark:text-slate-500 font-medium">Hazırlandı: ${formatDateRelative(o.completed_at)}</span>
+    <div class="flex justify-between items-center gap-2 mb-3">
+      <div class="flex items-center gap-1.5 shrink-0">
+        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${URGENCY_BADGE[o.urgency]}">${URGENCY_ICON[o.urgency]} ${o.urgency}</span>
+        ${hasNote ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">📝 Not</span>` : ""}
+      </div>
+
+      <!-- MÜŞTERİ / ALICI İSMİ (İKONSUZ CANLI KIRMIZI HAP BADGE) -->
+      <span class="font-black text-xs sm:text-sm text-white bg-red-600 dark:bg-red-600 px-3.5 py-1 rounded-full shadow-sm shadow-red-600/30 uppercase tracking-wide truncate max-w-[160px] sm:max-w-[240px] text-center shrink-0" title="Müşteri / Alıcı">
+        ${escapeHTML(o.recipient || "") || "GENEL MÜŞTERİ"}
+      </span>
+
+      <span class="text-xs text-slate-400 dark:text-slate-500 font-medium shrink-0">Hazırlandı: ${formatDateRelative(o.completed_at)}</span>
     </div>
     <p class="font-bold text-slate-800 dark:text-slate-100 text-base mb-1.5 flex items-start gap-1 justify-between">
       <span class="flex items-start gap-1 min-w-0 flex-1">
@@ -1621,7 +1648,7 @@ function renderYolaCikacakCard(o) {
     <div class="flex flex-col gap-0.5 text-[10px] text-slate-400 font-semibold uppercase">
       <div class="flex flex-wrap gap-x-4 gap-y-1">
         <span>👤 Temsilci: ${o.created_by || "—"}</span>
-        <span>🎯 Alıcı: ${o.recipient || "Genel"}</span>
+        <span>🚚 Şoför: ${escapeHTML(o.shipped_by || "") || "—"}</span>
         <span>👷 Hazırlayan: ${o.picked_by || "—"}</span>
       </div>
       ${o.customer_phone ? `<a href="tel:${o.customer_phone}" class="text-emerald-600 dark:text-emerald-400 normal-case font-bold flex items-center gap-0.5 mt-0.5 hover:underline">📞 Ara: ${escapeHTML(o.customer_phone)}</a>` : ""}
@@ -1647,15 +1674,25 @@ function renderYoldaCard(o) {
   const itemSummary = o.carried_material || o.items
     .map((i) => `${i.product_name} (${i.fulfilled_quantity} ${i.unit || "adet"})`)
     .join(", ");
+  const hasNote = !!(o.note || o.description);
   
   const timerText = getLiveTimerText(o.shipped_at);
   
   return `
 <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-5 flex flex-col justify-between relative group hover:border-purple-500 dark:hover:border-purple-400 transition-all duration-200 animate-slide-in">
   <div class="mb-4">
-    <div class="flex justify-between items-center mb-3">
-      <span class="px-2.5 py-1 rounded-full text-xs font-bold ${URGENCY_BADGE[o.urgency]}">${URGENCY_ICON[o.urgency]} ${o.urgency}</span>
-      <span class="text-xs text-purple-600 dark:text-purple-400 font-extrabold flex items-center gap-1 bg-purple-50 dark:bg-purple-500/10 px-2 py-0.5 rounded-lg border border-purple-200 dark:border-purple-500/20">
+    <div class="flex justify-between items-center gap-2 mb-3">
+      <div class="flex items-center gap-1.5 shrink-0">
+        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${URGENCY_BADGE[o.urgency]}">${URGENCY_ICON[o.urgency]} ${o.urgency}</span>
+        ${hasNote ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">📝 Not</span>` : ""}
+      </div>
+
+      <!-- MÜŞTERİ / ALICI İSMİ (İKONSUZ CANLI KIRMIZI HAP BADGE) -->
+      <span class="font-black text-xs sm:text-sm text-white bg-red-600 dark:bg-red-600 px-3.5 py-1 rounded-full shadow-sm shadow-red-600/30 uppercase tracking-wide truncate max-w-[160px] sm:max-w-[240px] text-center shrink-0" title="Müşteri / Alıcı">
+        ${escapeHTML(o.recipient || "") || "GENEL MÜŞTERİ"}
+      </span>
+
+      <span class="text-xs text-purple-600 dark:text-purple-400 font-extrabold flex items-center gap-1 bg-purple-50 dark:bg-purple-500/10 px-2 py-0.5 rounded-lg border border-purple-200 dark:border-purple-500/20 shrink-0">
         <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-ping"></span> Yolda
       </span>
     </div>
@@ -1674,7 +1711,7 @@ function renderYoldaCard(o) {
         <div>🚛 Araç: <b class="text-slate-700 dark:text-slate-300 normal-case">${o.vehicle_plate || "—"}</b></div>
         <div>👷 Hazırlayan: <span class="normal-case">${o.picked_by || "—"}</span></div>
         <div>👤 Temsilci: <span class="normal-case">${o.created_by || "—"}</span></div>
-        <div>🎯 Alıcı: <span class="normal-case">${o.recipient || "Genel"}</span></div>
+        <div>🚚 Şoför: <b class="text-indigo-600 dark:text-indigo-400 normal-case">${escapeHTML(o.shipped_by || "") || "—"}</b></div>
       </div>
       ${o.customer_phone ? `<a href="tel:${o.customer_phone}" class="text-emerald-600 dark:text-emerald-400 normal-case font-bold flex items-center gap-0.5 mt-1 hover:underline">📞 Ara: ${escapeHTML(o.customer_phone)}</a>` : ""}
     </div>
