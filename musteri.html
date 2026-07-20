@@ -337,6 +337,19 @@
               </div>
             </div>
 
+            <!-- Sipariş Açıklaması / Notu (İsteğe Bağlı) -->
+            <div class="mt-5 pt-4 border-t border-slate-100">
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-2">
+                Sipariş Açıklaması / Notu <span class="text-slate-400 font-normal lowercase">(isteğe bağlı)</span>
+              </label>
+              <textarea
+                id="cust-note"
+                rows="2"
+                placeholder="Sipariş ile ilgili ek notlarınız (ör: Teslimat zamanı, kapı şifresi vs.)..."
+                class="w-full bg-slate-50 border border-slate-200 hover:border-slate-350 focus:border-red-500 text-slate-900 rounded-xl px-4 py-3 text-xs focus:ring-4 focus:ring-red-500/10 focus:outline-none transition-all font-medium resize-none"
+              ></textarea>
+            </div>
+
             <!-- Gönderme ve Aksiyonlar -->
             <div class="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-3">
               <!-- Supabase Gönder -->

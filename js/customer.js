@@ -753,11 +753,15 @@ function gatherOrderData() {
     formattedAddress += ` [Tel: ${phone}]`;
   }
 
+  const noteEl = document.getElementById("cust-note");
+  const note = noteEl ? noteEl.value.trim() : "";
+
   return {
     id: generateId(),
     customer_address: formattedAddress,
     recipient: recipient,
     urgency: state.urgency,
+    note: note,
     status: "Bekliyor",
     created_by: "Müşteri",
     created_at: new Date().toISOString(),
@@ -827,6 +831,7 @@ function submitOrderToWa() {
   }
   if (orderData.recipient && orderData.recipient !== "Genel") msg += `👤 *Yetkili:* ${orderData.recipient}\n`;
   msg += `🚨 *Aciliyet:* ${orderData.urgency === "Çok Acil" ? "🔴 Çok Acil" : orderData.urgency === "Acil" ? "🟠 Acil" : "🔵 Normal"}\n`;
+  if (orderData.note) msg += `📝 *Not:* ${orderData.note}\n`;
   msg += `-----------------------------\n`;
   msg += `📦 *SIPARIŞ LISTESI:*\n`;
   
@@ -888,7 +893,7 @@ async function loadMyOrders() {
   try {
     const { data, error } = await state.supabaseClient
       .from("orders")
-      .select("id, created_at, urgency, status, items, destination_lat, destination_lng")
+      .select("id, created_at, urgency, status, note, items, destination_lat, destination_lng")
       .in("id", state.myOrderIds)
       .order("created_at", { ascending: false });
 

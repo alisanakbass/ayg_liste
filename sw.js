@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ayg-depo-v2';
+const CACHE_NAME = 'ayg-depo-v3';
 const ASSETS = [
   './',
   './index.html',

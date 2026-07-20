@@ -35,11 +35,47 @@ function renderNavigationButton(o) {
 `;
 }
 
+function toggleOrderNoteInput() {
+  const container = document.getElementById("order-note-container");
+  const btnText = document.getElementById("btn-toggle-note-text");
+  if (!container) return;
+  const isHidden = container.classList.contains("hidden");
+  if (isHidden) {
+    container.classList.remove("hidden");
+    if (btnText) btnText.textContent = "📝 Sipariş Açıklamasını Gizle";
+    const noteInp = document.getElementById("order-note");
+    if (noteInp) noteInp.focus();
+  } else {
+    container.classList.add("hidden");
+    if (btnText) btnText.textContent = "📝 + Sipariş Açıklaması Ekle";
+  }
+}
+
+function toggleModalNote() {
+  const noteBox = document.getElementById("modal-note-box");
+  const noteArrow = document.getElementById("modal-note-arrow");
+  if (!noteBox) return;
+  const isHidden = noteBox.classList.contains("hidden");
+  if (isHidden) {
+    noteBox.classList.remove("hidden");
+    if (noteArrow) noteArrow.style.transform = "rotate(180deg)";
+  } else {
+    noteBox.classList.add("hidden");
+    if (noteArrow) noteArrow.style.transform = "rotate(0deg)";
+  }
+}
+
 let orderItemCount = 0;
 
 function initOrderForm() {
   orderItemCount = 0;
   document.getElementById("order-address").value = "";
+  const noteEl = document.getElementById("order-note");
+  if (noteEl) noteEl.value = "";
+  const noteContainer = document.getElementById("order-note-container");
+  if (noteContainer) noteContainer.classList.add("hidden");
+  const btnToggleText = document.getElementById("btn-toggle-note-text");
+  if (btnToggleText) btnToggleText.textContent = "📝 + Sipariş Açıklaması Ekle";
   const openLinkBtn = document.getElementById("btn-open-address-link");
   if (openLinkBtn) openLinkBtn.classList.add("hidden");
   document.getElementById("order-urgency").value = "Normal";
@@ -81,6 +117,10 @@ function initOrderForm() {
     urgEl.addEventListener("change", saveAdminOrderDraft);
     urgEl.dataset.listenerAttached = "true";
   }
+  if (noteEl && !noteEl.dataset.listenerAttached) {
+    noteEl.addEventListener("input", saveAdminOrderDraft);
+    noteEl.dataset.listenerAttached = "true";
+  }
 }
 
 // Taslak Siparişi LocalStorage'a Kaydet
@@ -90,10 +130,12 @@ function saveAdminOrderDraft() {
   const recipient = document.getElementById("order-recipient") ? document.getElementById("order-recipient").value.trim() : "";
   const address = document.getElementById("order-address") ? document.getElementById("order-address").value.trim() : "";
   const urgency = document.getElementById("order-urgency") ? document.getElementById("order-urgency").value : "Normal";
+  const note = document.getElementById("order-note") ? document.getElementById("order-note").value.trim() : "";
 
   localStorage.setItem("ayg-admin-draft-recipient", recipient);
   localStorage.setItem("ayg-admin-draft-address", address);
   localStorage.setItem("ayg-admin-draft-urgency", urgency);
+  localStorage.setItem("ayg-admin-draft-note", note);
 
   if (state.pickerLat && state.pickerLng) {
     localStorage.setItem("ayg-admin-draft-lat", state.pickerLat);
@@ -128,6 +170,7 @@ function loadAdminOrderDraft() {
   const recipient = localStorage.getItem("ayg-admin-draft-recipient");
   const address = localStorage.getItem("ayg-admin-draft-address");
   const urgency = localStorage.getItem("ayg-admin-draft-urgency");
+  const note = localStorage.getItem("ayg-admin-draft-note");
   const lat = localStorage.getItem("ayg-admin-draft-lat");
   const lng = localStorage.getItem("ayg-admin-draft-lng");
   const itemsStr = localStorage.getItem("ayg-admin-draft-items");
@@ -144,6 +187,14 @@ function loadAdminOrderDraft() {
   }
   if (urgency && document.getElementById("order-urgency")) {
     document.getElementById("order-urgency").value = urgency;
+    hasData = true;
+  }
+  if (note && document.getElementById("order-note")) {
+    document.getElementById("order-note").value = note;
+    const container = document.getElementById("order-note-container");
+    if (container) container.classList.remove("hidden");
+    const btnToggleText = document.getElementById("btn-toggle-note-text");
+    if (btnToggleText) btnToggleText.textContent = "📝 Sipariş Açıklamasını Gizle";
     hasData = true;
   }
   if (lat && lng) {
@@ -176,6 +227,7 @@ function clearAdminOrderDraft() {
   localStorage.removeItem("ayg-admin-draft-recipient");
   localStorage.removeItem("ayg-admin-draft-address");
   localStorage.removeItem("ayg-admin-draft-urgency");
+  localStorage.removeItem("ayg-admin-draft-note");
   localStorage.removeItem("ayg-admin-draft-lat");
   localStorage.removeItem("ayg-admin-draft-lng");
   localStorage.removeItem("ayg-admin-draft-items");
@@ -327,6 +379,8 @@ async function saveOrder() {
   const phoneEl = document.getElementById("order-phone");
   const phone = phoneEl ? phoneEl.value.trim() : "";
   const urgency = document.getElementById("order-urgency").value;
+  const noteEl = document.getElementById("order-note");
+  const note = noteEl ? noteEl.value.trim() : "";
   const recipientEl = document.getElementById("order-recipient");
   const recipient = recipientEl ? recipientEl.value.trim() || "Genel" : "Genel";
   const createdBy = state.activeUser || "Bilinmeyen";
@@ -376,6 +430,7 @@ async function saveOrder() {
             customer_address: address, 
             customer_phone: phone,
             urgency, 
+            note,
             items, 
             created_by: createdBy, 
             recipient: recipient,
@@ -402,6 +457,7 @@ async function saveOrder() {
         state.orders[orderIndex].customer_address = address;
         state.orders[orderIndex].customer_phone = phone;
         state.orders[orderIndex].urgency = urgency;
+        state.orders[orderIndex].note = note;
         state.orders[orderIndex].items = items;
         state.orders[orderIndex].created_by = createdBy;
         state.orders[orderIndex].recipient = recipient;
@@ -424,6 +480,7 @@ async function saveOrder() {
       customer_address: address,
       customer_phone: phone,
       urgency,
+      note,
       status: "Bekliyor",
       created_by: createdBy,
       recipient: recipient,
@@ -483,6 +540,19 @@ function editOrder(orderId) {
 
   document.getElementById("order-address").value = order.customer_address;
   document.getElementById("order-urgency").value = order.urgency;
+  
+  const noteEl = document.getElementById("order-note");
+  const noteVal = order.note || order.description || "";
+  if (noteEl) noteEl.value = noteVal;
+  const noteContainer = document.getElementById("order-note-container");
+  const btnToggleText = document.getElementById("btn-toggle-note-text");
+  if (noteVal) {
+    if (noteContainer) noteContainer.classList.remove("hidden");
+    if (btnToggleText) btnToggleText.textContent = "📝 Sipariş Açıklamasını Gizle";
+  } else {
+    if (noteContainer) noteContainer.classList.add("hidden");
+    if (btnToggleText) btnToggleText.textContent = "📝 + Sipariş Açıklaması Ekle";
+  }
   
   const phoneEl = document.getElementById("order-phone");
   if (phoneEl) phoneEl.value = order.customer_phone || "";
@@ -598,14 +668,12 @@ function renderActiveOrders() {
   updateStats();
 }
 
-function renderBekliyorCard(o) {
-  const itemSummary =
-    o.items
-      .slice(0, 2)
-      .map((i) => `${escapeHTML(i.product_name)} (${i.requested_quantity} ${i.unit || "adet"})`)
-      .join(", ") +
-    (o.items.length > 2 ? ` ve +${o.items.length - 2} ürün` : "");
-    
+function renderOrderCard(o) {
+  const itemSummary = o.items
+    ? o.items.map((i) => `${i.product_name} (${i.requested_quantity} ${i.unit || "adet"})`).join(", ")
+    : "Ürün bilgisi yok";
+  const hasNote = !!(o.note || o.description);
+
   return `
 <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-5 flex flex-col justify-between relative group hover:border-indigo-500 dark:hover:border-indigo-400 transition-all duration-200 animate-slide-in">
   
@@ -625,7 +693,10 @@ function renderBekliyorCard(o) {
 
   <div class="mb-4">
     <div class="flex justify-between items-center mb-3">
-      <span class="px-2.5 py-1 rounded-full text-xs font-bold ${URGENCY_BADGE[o.urgency]}">${URGENCY_ICON[o.urgency]} ${o.urgency}</span>
+      <div class="flex items-center gap-1.5">
+        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${URGENCY_BADGE[o.urgency]}">${URGENCY_ICON[o.urgency]} ${o.urgency}</span>
+        ${hasNote ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">📝 Not Var</span>` : ""}
+      </div>
       <span class="text-xs text-slate-400 dark:text-slate-500 font-medium">${formatDateRelative(o.created_at)}</span>
     </div>
     <p class="font-bold text-slate-800 dark:text-slate-100 text-base mb-1.5 flex items-start gap-1 justify-between">
@@ -664,11 +735,16 @@ function renderBekliyorCard(o) {
 
 function renderHazirlaniyorCard(o) {
   const canAccess = !o.picked_by || o.picked_by === state.activeUser;
+  const hasNote = !!(o.note || o.description);
+
   return `
 <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-premium dark:shadow-premium-dark p-5 flex flex-col justify-between hover:border-indigo-500 transition-all duration-200 animate-slide-in">
   <div class="mb-4">
     <div class="flex justify-between items-center mb-3">
-      <span class="px-2.5 py-1 rounded-full text-xs font-bold ${URGENCY_BADGE[o.urgency]}">${URGENCY_ICON[o.urgency]} ${o.urgency}</span>
+      <div class="flex items-center gap-1.5">
+        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${URGENCY_BADGE[o.urgency]}">${URGENCY_ICON[o.urgency]} ${o.urgency}</span>
+        ${hasNote ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">📝 Not Var</span>` : ""}
+      </div>
       <span class="text-xs text-slate-400 dark:text-slate-500 font-medium">${formatDateRelative(o.created_at)}</span>
     </div>
     <p class="font-bold text-slate-800 dark:text-slate-100 text-base mb-2 flex items-start gap-1 justify-between">
@@ -808,6 +884,24 @@ function openModal(orderId) {
   badge.textContent = `${URGENCY_ICON[order.urgency]} ${order.urgency}`;
   badge.className = `px-3 py-1 rounded-full text-xs font-bold ${URGENCY_BADGE[order.urgency]}`;
   
+  // Sipariş Açıklaması / Notu Hazırla
+  const note = (order.note || order.description || "").trim();
+  const noteBox = document.getElementById("modal-note-box");
+  const noteText = document.getElementById("modal-note-text");
+  const noteBtnText = document.getElementById("modal-note-btn-text");
+  const noteArrow = document.getElementById("modal-note-arrow");
+
+  if (noteBox) noteBox.classList.add("hidden");
+  if (noteArrow) noteArrow.style.transform = "rotate(0deg)";
+
+  if (note) {
+    if (noteText) noteText.textContent = note;
+    if (noteBtnText) noteBtnText.textContent = "📝 Sipariş Açıklamasını Göster";
+  } else {
+    if (noteText) noteText.textContent = "Bu siparişte ek bir açıklama / not yazılmamış.";
+    if (noteBtnText) noteBtnText.textContent = "📝 Sipariş Açıklaması (Not Yok)";
+  }
+
   renderModalItems();
   document.getElementById("detail-modal").classList.remove("hidden");
 }
