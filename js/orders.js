@@ -1956,7 +1956,7 @@ function openB2BExtensionForOrder() {
   if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
     extensionUrl = chrome.runtime.getURL('dashboard/dashboard.html?mode=ayg_order');
   } else {
-    const extensionId = 'glmobnjhdneghlameimhfaehjlphjgla';
+    const extensionId = 'jlckalpblajjdjkkbjgipjbeelclfnhm';
     extensionUrl = `chrome-extension://${extensionId}/dashboard/dashboard.html?mode=ayg_order`;
   }
   const localUrl = '../b2b_karsilastirma/dashboard/dashboard.html?mode=ayg_order';
