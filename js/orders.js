@@ -1952,8 +1952,13 @@ setInterval(() => {
 // =============================================
 
 function openB2BExtensionForOrder() {
-  const extensionId = 'glmobnjhdneghlameimhfaehjlphjgla';
-  const extensionUrl = `chrome-extension://${extensionId}/dashboard/dashboard.html?mode=ayg_order`;
+  let extensionUrl = '';
+  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+    extensionUrl = chrome.runtime.getURL('dashboard/dashboard.html?mode=ayg_order');
+  } else {
+    const extensionId = 'glmobnjhdneghlameimhfaehjlphjgla';
+    extensionUrl = `chrome-extension://${extensionId}/dashboard/dashboard.html?mode=ayg_order`;
+  }
   const localUrl = '../b2b_karsilastirma/dashboard/dashboard.html?mode=ayg_order';
 
   // 1. Öncelikli olarak Chrome Eklentisi URL'sini aç (chrome-extension:// modülü ve CORS güvenlik izinlerini sağlar)
