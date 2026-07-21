@@ -247,36 +247,40 @@ function addOrderItem(name = "", qty = 1, unit = "adet") {
   const id = `item-${orderItemCount}`;
   const div = document.createElement("div");
   div.className =
-    "flex gap-1.5 sm:gap-2 items-center bg-slate-50 dark:bg-slate-900/60 p-1.5 sm:p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 animate-slide-in";
+    "flex flex-col sm:flex-row gap-2 sm:items-center bg-slate-50 dark:bg-slate-900/60 p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 animate-slide-in";
   div.id = id;
   div.innerHTML = `
-<div class="relative flex-1">
+<div class="relative flex-1 w-full">
   <input type="text" placeholder="Ürün adı" 
-    class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-2 sm:px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs sm:text-sm text-slate-800 dark:text-white font-semibold" 
-    id="${id}-name" value="${name}" autocomplete="off" />
+    class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-2.5 sm:px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs sm:text-sm text-slate-800 dark:text-white font-semibold" 
+    id="${id}-name" value="${escapeHTML(name)}" title="${escapeHTML(name)}" autocomplete="off" />
   <!-- Canlı Arama Öneri Kutusu -->
   <div id="${id}-suggestions-box" class="hidden absolute left-0 right-0 top-[calc(100%+4px)] z-50 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl shadow-premium max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/50"></div>
 </div>
-<select 
-  class="w-16 sm:w-20 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-1 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-[10px] sm:text-xs text-center text-slate-800 dark:text-white font-semibold cursor-pointer" 
-  id="${id}-unit">
-  <option value="adet" ${unit === "adet" ? "selected" : ""}>Adet</option>
-  <option value="kilo" ${unit === "kilo" ? "selected" : ""}>Kilo</option>
-  <option value="çuval" ${unit === "çuval" ? "selected" : ""}>Çuval</option>
-  <option value="m³" ${unit === "m³" ? "selected" : ""}>m³ (Metreküp)</option>
-  <option value="kutu" ${unit === "kutu" ? "selected" : ""}>Kutu</option>
-  <option value="paket" ${unit === "paket" ? "selected" : ""}>Paket</option>
-  <option value="metre" ${unit === "metre" ? "selected" : ""}>Metre</option>
-  <option value="litre" ${unit === "litre" ? "selected" : ""}>Litre</option>
-</select>
-<input type="number" placeholder="Miktar" min="1"
-  class="w-14 sm:w-16 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-1 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs sm:text-sm text-center text-slate-800 dark:text-white font-bold" 
-  id="${id}-qty" value="${qty}" />
-<button onclick="removeOrderItem('${id}')" 
-  class="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 p-1.5 rounded-lg active:scale-90 transition-all cursor-pointer shrink-0"
-  title="Ürünü Çıkar">
-  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-</button>
+<div class="flex items-center gap-2 justify-between sm:justify-start shrink-0 w-full sm:w-auto">
+  <div class="flex items-center gap-1.5 flex-1 sm:flex-initial">
+    <select 
+      class="flex-1 sm:w-24 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-2 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs text-center text-slate-800 dark:text-white font-semibold cursor-pointer" 
+      id="${id}-unit">
+      <option value="adet" ${unit === "adet" ? "selected" : ""}>Adet</option>
+      <option value="kilo" ${unit === "kilo" ? "selected" : ""}>Kilo</option>
+      <option value="çuval" ${unit === "çuval" ? "selected" : ""}>Çuval</option>
+      <option value="m³" ${unit === "m³" ? "selected" : ""}>m³ (Metreküp)</option>
+      <option value="kutu" ${unit === "kutu" ? "selected" : ""}>Kutu</option>
+      <option value="paket" ${unit === "paket" ? "selected" : ""}>Paket</option>
+      <option value="metre" ${unit === "metre" ? "selected" : ""}>Metre</option>
+      <option value="litre" ${unit === "litre" ? "selected" : ""}>Litre</option>
+    </select>
+    <input type="number" placeholder="Miktar" min="1"
+      class="w-20 sm:w-20 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-2 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs sm:text-sm text-center text-slate-800 dark:text-white font-bold" 
+      id="${id}-qty" value="${qty}" />
+  </div>
+  <button onclick="removeOrderItem('${id}')" 
+    class="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 p-2 rounded-lg active:scale-90 transition-all cursor-pointer shrink-0"
+    title="Ürünü Çıkar">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+  </button>
+</div>
 `;
   document.getElementById("order-items-list").appendChild(div);
 
@@ -284,7 +288,10 @@ function addOrderItem(name = "", qty = 1, unit = "adet") {
   const nameInp = div.querySelector(`#${id}-name`);
   const unitSel = div.querySelector(`#${id}-unit`);
   const qtyInp = div.querySelector(`#${id}-qty`);
-  if (nameInp) nameInp.addEventListener("input", saveAdminOrderDraft);
+  if (nameInp) nameInp.addEventListener("input", () => {
+    nameInp.title = nameInp.value;
+    saveAdminOrderDraft();
+  });
   if (unitSel) unitSel.addEventListener("change", saveAdminOrderDraft);
   if (qtyInp) qtyInp.addEventListener("input", saveAdminOrderDraft);
 
@@ -322,7 +329,7 @@ function addOrderItem(name = "", qty = 1, unit = "adet") {
               <svg class="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
               </svg>
-              <span class="truncate">${escapeHTML(item)}</span>
+              <span class="whitespace-normal break-words leading-tight text-left">${escapeHTML(item)}</span>
             </button>
           `).join("");
 
@@ -716,7 +723,7 @@ function renderOrderCard(o) {
       </span>
       ${renderNavigationButton(o)}
     </p>
-    <p class="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/30 p-2 rounded-lg border border-slate-100 dark:border-slate-800 truncate">
+    <p class="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/30 p-2 rounded-lg border border-slate-100 dark:border-slate-800 line-clamp-2 break-words" title="${escapeHTML(itemSummary)}">
       <b>Ürünler:</b> ${itemSummary}
     </p>
   </div>
@@ -977,10 +984,10 @@ function renderModalItems() {
 
         return `
 <div class="border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition-colors duration-200 ${rowClass}">
-  <div class="flex items-center gap-3 flex-1 min-w-0">
+  <div class="flex items-start gap-3 flex-1 min-w-0">
     <!-- Tik Kutusu -->
     <button ${tickAction} ${!isEditable ? 'disabled' : ''}
-      class="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-all active:scale-95 ${disableTick} ${
+      class="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-all active:scale-95 mt-0.5 ${disableTick} ${
         isChecked 
           ? "bg-emerald-600 border-emerald-600 text-white" 
           : "border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-transparent"
@@ -988,8 +995,8 @@ function renderModalItems() {
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
     </button>
     <div class="min-w-0 flex-1">
-      <p class="font-bold text-slate-800 dark:text-slate-200 text-sm truncate ${isChecked ? 'line-through text-slate-400 dark:text-slate-500' : ''}">📦 ${item.product_name}</p>
-      <p class="text-xs text-slate-400 dark:text-slate-500 font-semibold mt-0.5 uppercase tracking-wide">Talep Edilen: ${item.requested_quantity} ${item.unit || "adet"}</p>
+      <p class="font-bold text-slate-800 dark:text-slate-200 text-sm sm:text-base break-words whitespace-normal leading-snug ${isChecked ? 'line-through text-slate-400 dark:text-slate-500' : ''}" title="${escapeHTML(item.product_name || '')}">📦 ${escapeHTML(item.product_name || '')}</p>
+      <p class="text-xs text-slate-400 dark:text-slate-500 font-semibold mt-1 uppercase tracking-wide">Talep Edilen: ${item.requested_quantity} ${item.unit || "adet"}</p>
     </div>
   </div>
   <div class="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 border-slate-200 dark:border-slate-800 pt-2 sm:pt-0">
