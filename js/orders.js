@@ -254,8 +254,6 @@ function addOrderItem(name = "", qty = 1, unit = "adet") {
   <input type="text" placeholder="Ürün adı" 
     class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg px-2.5 sm:px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs sm:text-sm text-slate-800 dark:text-white font-semibold" 
     id="${id}-name" value="${escapeHTML(name)}" title="${escapeHTML(name)}" autocomplete="off" />
-  <!-- Canlı Arama Öneri Kutusu -->
-  <div id="${id}-suggestions-box" class="hidden absolute left-0 right-0 top-[calc(100%+4px)] z-50 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl shadow-premium max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/50"></div>
 </div>
 <div class="flex items-center gap-2 justify-between sm:justify-start shrink-0 w-full sm:w-auto">
   <div class="flex items-center gap-1.5 flex-1 sm:flex-initial">
@@ -294,76 +292,6 @@ function addOrderItem(name = "", qty = 1, unit = "adet") {
   });
   if (unitSel) unitSel.addEventListener("change", saveAdminOrderDraft);
   if (qtyInp) qtyInp.addEventListener("input", saveAdminOrderDraft);
-
-  // Canlı arama otomatik tamamlama lojiği
-  if (nameInp) {
-    const box = div.querySelector(`#${id}-suggestions-box`);
-    let debounceTimer;
-    nameInp.addEventListener("input", () => {
-      const val = nameInp.value.trim();
-      clearTimeout(debounceTimer);
-
-      if (val.length < 3) {
-        box.innerHTML = "";
-        box.classList.add("hidden");
-        return;
-      }
-
-      debounceTimer = setTimeout(async () => {
-        try {
-          const res = await fetch(`/.netlify/functions/search-products?q=${encodeURIComponent(val)}`);
-          if (!res.ok) throw new Error("Arama API hatası");
-          const list = await res.json();
-
-          if (list.length === 0) {
-            box.innerHTML = `<div class="p-3 text-xs text-slate-400 dark:text-slate-500 text-center">Öneri bulunamadı</div>`;
-            box.classList.remove("hidden");
-            return;
-          }
-
-          box.innerHTML = list.map(item => `
-            <button 
-              type="button"
-              class="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/30 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all focus:outline-none flex items-center gap-2 cursor-pointer"
-            >
-              <svg class="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-              </svg>
-              <span class="whitespace-normal break-words leading-tight text-left">${escapeHTML(item)}</span>
-            </button>
-          `).join("");
-
-          box.classList.remove("hidden");
-
-          const buttons = box.querySelectorAll("button");
-          buttons.forEach((btn, idx) => {
-            btn.addEventListener("click", (e) => {
-              e.stopPropagation();
-              nameInp.value = list[idx];
-              box.innerHTML = "";
-              box.classList.add("hidden");
-              saveAdminOrderDraft(); // Taslağı güncelle
-            });
-          });
-
-        } catch (err) {
-          console.error("Autocomplete error:", err);
-        }
-      }, 300);
-    });
-
-    document.addEventListener("click", (e) => {
-      if (e.target !== nameInp && !box.contains(e.target)) {
-        box.classList.add("hidden");
-      }
-    });
-
-    nameInp.addEventListener("focus", () => {
-      if (nameInp.value.trim().length >= 3 && box.children.length > 0) {
-        box.classList.remove("hidden");
-      }
-    });
-  }
 
   saveAdminOrderDraft();
 }
@@ -2018,6 +1946,157 @@ setInterval(() => {
     }
   });
 }, 1000);
+
+// =============================================
+// AYG B2B EKLENTİSİ SİPARİŞ ENTEGRASYONU
+// =============================================
+
+function openB2BExtensionForOrder() {
+  const extensionId = 'glmobnjhdneghlameimhfaehjlphjgla';
+  const extensionUrl = `chrome-extension://${extensionId}/dashboard/dashboard.html?mode=ayg_order`;
+  const localUrl = '../b2b_karsilastirma/dashboard/dashboard.html?mode=ayg_order';
+
+  // 1. Öncelikli olarak Chrome Eklentisi URL'sini aç (chrome-extension:// modülü ve CORS güvenlik izinlerini sağlar)
+  let newWin = null;
+  try {
+    newWin = window.open(extensionUrl, 'ayg_b2b_dashboard', 'width=1400,height=900,resizable=yes,scrollbars=yes');
+  } catch(e) {}
+
+  // 2. Eklenti adresi açılamazsa yerel dosya yolunu yedek olarak dene
+  if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+    newWin = window.open(localUrl, 'ayg_b2b_dashboard', 'width=1400,height=900,resizable=yes,scrollbars=yes');
+  }
+
+  if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+    showToast("⚠️ Pop-up engelleyici pencereyi engelledi. Lütfen tarayıcınızda açılır pencerelere izin verin.", "warning");
+  } else {
+    showToast("🔍 AYG B2B Chrome Eklentisi açılıyor... Seçtiğiniz ürünler siparişe aktarılacaktır.", "info");
+  }
+}
+
+function detectSmartUnit(name, defaultUnit = 'adet') {
+  const validUnits = ['adet', 'kilo', 'çuval', 'm³', 'kutu', 'paket', 'metre', 'litre'];
+  const normalizedDefault = (defaultUnit || 'adet').toString().toLowerCase().trim();
+  if (validUnits.includes(normalizedDefault)) {
+    return normalizedDefault;
+  }
+
+  const text = (name || '').toLowerCase();
+  if (text.includes(' metre') || text.includes(' mt') || text.includes(' m.')) return 'metre';
+  if (text.includes(' kg') || text.includes(' kilo') || text.includes('kg.')) return 'kilo';
+  if (text.includes(' cuval') || text.includes(' çuval')) return 'çuval';
+  if (text.includes(' kutu')) return 'kutu';
+  if (text.includes(' paket') || text.includes(' pkt')) return 'paket';
+  if (text.includes(' m3') || text.includes(' metreküp') || text.includes(' m³')) return 'm³';
+  if (text.includes(' litre') || text.includes(' lt')) return 'litre';
+
+  return 'adet';
+}
+
+function importProductsFromB2BExtension(items) {
+  if (!Array.isArray(items) || items.length === 0) return;
+
+  // Sipariş Oluştur ekranında değilsek geçiş yap
+  if (typeof switchPage === 'function' && state.currentPage !== 'create') {
+    switchPage('create');
+  }
+
+  let addedCount = 0;
+
+  items.forEach(item => {
+    const rawName = item.name || item.product_name || item.title || '';
+    if (!rawName.trim()) return;
+
+    const qty = parseInt(item.qty || item.requested_quantity || item.quantity) || 1;
+    const unit = detectSmartUnit(rawName, item.unit || item.birim || 'adet');
+
+    // Sipariş formundaki ürün satırlarını kontrol et
+    const itemDivs = document.querySelectorAll('[id^="item-"]');
+    let targetId = null;
+
+    if (itemDivs.length === 1) {
+      const firstDivId = itemDivs[0].id;
+      const firstNameInp = document.getElementById(`${firstDivId}-name`);
+      if (firstNameInp && !firstNameInp.value.trim()) {
+        targetId = firstDivId;
+      }
+    }
+
+    if (targetId) {
+      const nameInp = document.getElementById(`${targetId}-name`);
+      const qtyInp = document.getElementById(`${targetId}-qty`);
+      const unitSel = document.getElementById(`${targetId}-unit`);
+
+      if (nameInp) { nameInp.value = rawName; nameInp.title = rawName; }
+      if (qtyInp) { qtyInp.value = qty; }
+      if (unitSel) { unitSel.value = unit; }
+    } else {
+      addOrderItem(rawName, qty, unit);
+    }
+
+    addedCount++;
+  });
+
+  if (addedCount > 0) {
+    if (typeof saveAdminOrderDraft === 'function') saveAdminOrderDraft();
+    showToast(`📦 AYG B2B'den ${addedCount} ürün sipariş listesine eklendi!`, "success");
+  }
+}
+
+function initB2BExtensionIntegration() {
+  // 1. BroadcastChannel dinleyicisi
+  try {
+    const bc = new BroadcastChannel("ayg_b2b_cart");
+    bc.onmessage = (e) => {
+      if (e.data && e.data.type === "ADD_ORDER_ITEM" && e.data.item) {
+        importProductsFromB2BExtension([e.data.item]);
+      } else if (e.data && e.data.type === "IMPORT_B2B_CART" && Array.isArray(e.data.items)) {
+        importProductsFromB2BExtension(e.data.items);
+      }
+    };
+  } catch (err) {}
+
+  // 2. window postMessage dinleyicisi
+  window.addEventListener("message", (e) => {
+    if (e.data && e.data.type === "ADD_ORDER_ITEM" && e.data.item) {
+      importProductsFromB2BExtension([e.data.item]);
+    } else if (e.data && e.data.type === "IMPORT_B2B_CART" && Array.isArray(e.data.items)) {
+      importProductsFromB2BExtension(e.data.items);
+    }
+  });
+
+  // 3. localStorage storage event dinleyicisi
+  window.addEventListener("storage", (e) => {
+    if (e.key === "ayg_pending_order_items" && e.newValue) {
+      try {
+        const items = JSON.parse(e.newValue);
+        if (Array.isArray(items) && items.length > 0) {
+          importProductsFromB2BExtension(items);
+          localStorage.removeItem("ayg_pending_order_items");
+        }
+      } catch (err) {}
+    }
+  });
+
+  // 4. Sayfa açıldığında bekleyen öğe kontrolü
+  try {
+    const pending = localStorage.getItem("ayg_pending_order_items");
+    if (pending) {
+      const items = JSON.parse(pending);
+      if (Array.isArray(items) && items.length > 0) {
+        importProductsFromB2BExtension(items);
+        localStorage.removeItem("ayg_pending_order_items");
+      }
+    }
+  } catch (err) {}
+}
+
+// Otomatik entegrasyon başlatma
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initB2BExtensionIntegration);
+} else {
+  initB2BExtensionIntegration();
+}
 
 
 

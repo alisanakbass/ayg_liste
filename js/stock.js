@@ -301,8 +301,6 @@ function renderStockPanel() {
               class="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-800 dark:text-white transition-all text-sm"
               autocomplete="off"
             />
-            <!-- Canlı Arama Öneri Kutusu -->
-            <div id="stock-suggestions-box" class="hidden absolute left-0 right-0 top-[calc(100%+4px)] z-50 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl shadow-premium max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/50"></div>
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">İstenilen Adet</label>
@@ -551,9 +549,6 @@ function renderStockPanel() {
       </div>
     </div>
   `;
-
-  // Canlı arama önerilerini başlat
-  initProductAutocomplete();
 }
 
 // Arşiv Panelini Göster / Gizle
@@ -591,81 +586,7 @@ function filterArchiveDate(dateRange) {
   renderStockPanel();
 }
 
-// Canlı Arama (Autocomplete) Yönetimi
-function initProductAutocomplete() {
-  const input = document.getElementById("stock-product-name");
-  const box = document.getElementById("stock-suggestions-box");
-  if (!input || !box) return;
 
-  let debounceTimer;
-
-  input.addEventListener("input", () => {
-    const val = input.value.trim();
-    clearTimeout(debounceTimer);
-
-    if (val.length < 3) {
-      box.innerHTML = "";
-      box.classList.add("hidden");
-      return;
-    }
-
-    debounceTimer = setTimeout(async () => {
-      try {
-        const res = await fetch(`/.netlify/functions/search-products?q=${encodeURIComponent(val)}`);
-        if (!res.ok) throw new Error("Arama API hatası");
-        const list = await res.json();
-
-        if (list.length === 0) {
-          box.innerHTML = `<div class="p-3 text-xs text-slate-400 dark:text-slate-500 text-center">Öneri bulunamadı</div>`;
-          box.classList.remove("hidden");
-          return;
-        }
-
-        // Önerileri listele
-        box.innerHTML = list.map(item => `
-          <button 
-            type="button"
-            class="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/30 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all focus:outline-none flex items-center gap-2 cursor-pointer"
-          >
-            <svg class="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-            </svg>
-            <span class="truncate">${escapeHTML(item)}</span>
-          </button>
-        `).join("");
-
-        box.classList.remove("hidden");
-
-        // Öneriye tıklama olayı
-        const buttons = box.querySelectorAll("button");
-        buttons.forEach((btn, idx) => {
-          btn.addEventListener("click", () => {
-            input.value = list[idx];
-            box.innerHTML = "";
-            box.classList.add("hidden");
-          });
-        });
-
-      } catch (err) {
-        console.error("Autocomplete error:", err);
-      }
-    }, 300);
-  });
-
-  // Tıklamayla önerileri kapatma lojiği
-  document.addEventListener("click", (e) => {
-    if (e.target !== input && !box.contains(e.target)) {
-      box.classList.add("hidden");
-    }
-  });
-
-  // Girdi alanına odaklanınca eğer içerik doluysa önerileri tekrar aç
-  input.addEventListener("focus", () => {
-    if (input.value.trim().length >= 3 && box.children.length > 0) {
-      box.classList.remove("hidden");
-    }
-  });
-}
 
 // Dinamik Modal Yönetimi
 function openStockDynamicModal(title, contentHtml) {
